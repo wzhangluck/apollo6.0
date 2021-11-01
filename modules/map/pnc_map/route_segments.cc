@@ -1,0 +1,401 @@
+/******************************************************************************
+ * Copyright 2017 The Apollo Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *****************************************************************************/
+
+/**
+ * @file:
+ **/
+
+#include "modules/map/pnc_map/route_segments.h"
+
+#include <algorithm>
+
+#include "modules/common/util/util.h"
+
+namespace apollo {
+namespace hdmap {
+namespace {
+
+// Minimum error in lane segmentation.
+constexpr double kSegmentationEpsilon = 0.2;
+}  // namespace
+
+const std::string &RouteSegments::Id() const { return id_; }
+
+void RouteSegments::SetId(const std::string &id) { id_ = id; }
+
+void RouteSegments::SetCanExit(bool can_exit) { can_exit_ = can_exit; }
+
+bool RouteSegments::CanExit() const { return can_exit_; }
+
+bool RouteSegments::StopForDestination() const { return stop_for_destination_; }
+
+void RouteSegments::SetStopForDestination(bool stop_for_destination) {
+  stop_for_destination_ = stop_for_destination;
+}
+
+//waypoint的车道id和lane_segment的车道id相同，且s在lane_segment的范围内
+bool RouteSegments::WithinLaneSegment(const LaneSegment &lane_segment,
+                                      const LaneWaypoint &waypoint) {
+  return waypoint.lane &&
+         lane_segment.lane->id().id() == waypoint.lane->id().id() &&
+         lane_segment.start_s - kSegmentationEpsilon <= waypoint.s &&
+         lane_segment.end_s + kSegmentationEpsilon >= waypoint.s;
+}
+//waypoint的车道id和lane_segment的车道id相同，且s在lane_segment的范围内
+bool RouteSegments::WithinLaneSegment(const LaneSegment &lane_segment,
+                                      const routing::LaneWaypoint &waypoint) {
+  return lane_segment.lane && lane_segment.lane->id().id() == waypoint.id() &&
+         lane_segment.start_s - kSegmentationEpsilon <= waypoint.s() &&
+         lane_segment.end_s + kSegmentationEpsilon >= waypoint.s();
+}
+//waypoint的车道id和lane_segment的车道id相同，且s在lane_segment的范围内
+bool RouteSegments::WithinLaneSegment(const routing::LaneSegment &lane_segment,
+                                      const LaneWaypoint &waypoint) {
+  return waypoint.lane && lane_segment.id() == waypoint.lane->id().id() &&
+         lane_segment.start_s() - kSegmentationEpsilon <= waypoint.s &&
+         lane_segment.end_s() + kSegmentationEpsilon >= waypoint.s;
+}
+//waypoint的车道id和lane_segment的车道id相同，且s在lane_segment的范围内
+bool RouteSegments::WithinLaneSegment(const routing::LaneSegment &lane_segment,
+                                      const routing::LaneWaypoint &waypoint) {
+  return lane_segment.id() == waypoint.id() &&
+         lane_segment.start_s() - kSegmentationEpsilon <= waypoint.s() &&
+         lane_segment.end_s() + kSegmentationEpsilon >= waypoint.s();
+}
+
+bool RouteSegments::Stitch(const RouteSegments &other) {
+  auto first_waypoint = FirstWaypoint();
+  bool has_overlap = IsWaypointOnSegment(other.FirstWaypoint());
+  if (other.IsWaypointOnSegment(first_waypoint)) {
+    auto iter = other.begin();
+    while (iter != other.end() && !WithinLaneSegment(*iter, first_waypoint)) {
+      ++iter;
+    }
+    begin()->start_s = std::min(begin()->start_s, iter->start_s);
+    begin()->end_s = std::max(begin()->end_s, iter->end_s);
+    insert(begin(), other.begin(), iter);
+    has_overlap = true;
+  }
+  auto last_waypoint = LastWaypoint();
+  if (other.IsWaypointOnSegment(last_waypoint)) {
+    auto iter = other.rbegin();
+    while (iter != other.rend() && !WithinLaneSegment(*iter, last_waypoint)) {
+      ++iter;
+    }
+    back().start_s = std::min(back().start_s, iter->start_s);
+    back().end_s = std::max(back().end_s, iter->end_s);
+    insert(end(), iter.base(), other.end());
+    has_overlap = true;
+  }
+  return has_overlap;
+}
+
+const LaneWaypoint &RouteSegments::RouteEndWaypoint() const {
+  return route_end_waypoint_;
+}
+
+bool RouteSegments::IsOnSegment() const { return is_on_segment_; }
+
+void RouteSegments::SetIsOnSegment(bool on_segment) {
+  is_on_segment_ = on_segment;
+}
+
+bool RouteSegments::IsNeighborSegment() const { return is_neighbor_; }
+
+void RouteSegments::SetIsNeighborSegment(bool is_neighbor) {
+  is_neighbor_ = is_neighbor;
+}
+
+void RouteSegments::SetRouteEndWaypoint(const LaneWaypoint &waypoint) {
+  route_end_waypoint_ = waypoint;
+}
+
+LaneWaypoint RouteSegments::FirstWaypoint() const {
+  return LaneWaypoint(front().lane, front().start_s, 0.0);
+}
+
+LaneWaypoint RouteSegments::LastWaypoint() const {
+  return LaneWaypoint(back().lane, back().end_s, 0.0);
+}
+
+void RouteSegments::SetProperties(const RouteSegments &other) {
+  route_end_waypoint_ = other.RouteEndWaypoint();
+  can_exit_ = other.CanExit();
+  is_on_segment_ = other.IsOnSegment();
+  next_action_ = other.NextAction();
+  previous_action_ = other.PreviousAction();
+  id_ = other.Id();
+  stop_for_destination_ = other.StopForDestination();
+}
+
+double RouteSegments::Length(const RouteSegments &segments) {
+  double s = 0.0;
+  for (const auto &seg : segments) {
+    s += seg.Length();
+  }
+  return s;
+}
+
+bool RouteSegments::GetProjection(const common::PointENU &point_enu,
+                                  common::SLPoint *sl_point,
+                                  LaneWaypoint *waypoint) const {
+  return GetProjection({point_enu.x(), point_enu.y()}, sl_point, waypoint);
+}
+
+bool RouteSegments::IsConnectedSegment(const RouteSegments &other) const {
+  if (empty() || other.empty()) {
+    return false;
+  }
+  if (IsWaypointOnSegment(other.FirstWaypoint())) {
+    return true;
+  }
+  if (IsWaypointOnSegment(other.LastWaypoint())) {
+    return true;
+  }
+  if (other.IsWaypointOnSegment(FirstWaypoint())) {
+    return true;
+  }
+  if (other.IsWaypointOnSegment(LastWaypoint())) {
+    return true;
+  }
+  return false;
+}
+
+bool RouteSegments::Shrink(const common::math::Vec2d &point,
+                           const double look_backward,
+                           const double look_forward) {
+  common::SLPoint sl_point;
+  LaneWaypoint waypoint;
+  if (!GetProjection(point, &sl_point, &waypoint)) {
+    AERROR << "failed to project " << point.DebugString() << " to segment";
+    return false;
+  }
+  return Shrink(sl_point.s(), look_backward, look_forward);
+}
+
+bool RouteSegments::Shrink(const double s, const double look_backward,
+                           const double look_forward) {
+  LaneWaypoint waypoint;
+  if (!GetWaypoint(s, &waypoint)) {
+    return false;
+  }
+  return Shrink(s, waypoint, look_backward, look_forward);
+}
+
+bool RouteSegments::Shrink(const double s, const LaneWaypoint &waypoint,
+                           const double look_backward,
+                           const double look_forward) {
+  double acc_s = 0.0;
+  auto iter = begin();
+  while (iter != end() && acc_s + iter->Length() < s - look_backward) {
+    acc_s += iter->Length();
+    ++iter;
+  }
+  if (iter == end()) {
+    return true;
+  }
+  iter->start_s =
+      std::max(iter->start_s, s - look_backward - acc_s + iter->start_s);
+  if (iter->Length() < kSegmentationEpsilon) {
+    ++iter;
+  }
+  erase(begin(), iter);
+
+  iter = begin();
+  acc_s = 0.0;
+  while (iter != end() && !WithinLaneSegment(*iter, waypoint)) {
+    ++iter;
+  }
+  if (iter == end()) {
+    return true;
+  }
+  acc_s = iter->end_s - waypoint.s;
+  if (acc_s >= look_forward) {
+    iter->end_s = waypoint.s + look_forward;
+    ++iter;
+    erase(iter, end());
+    return true;
+  }
+  ++iter;
+  while (iter != end() && acc_s + iter->Length() < look_forward) {
+    acc_s += iter->Length();
+    ++iter;
+  }
+  if (iter == end()) {
+    return true;
+  }
+  iter->end_s = std::min(iter->end_s, look_forward - acc_s + iter->start_s);
+  erase(iter + 1, end());
+  return true;
+}
+
+bool RouteSegments::GetWaypoint(const double s, LaneWaypoint *waypoint) const {
+  double accumulated_s = 0.0;
+  bool has_projection = false;
+  for (auto iter = begin(); iter != end();
+       accumulated_s += (iter->end_s - iter->start_s), ++iter) {
+    if (accumulated_s - kSegmentationEpsilon < s &&
+        s < accumulated_s + iter->end_s - iter->start_s +
+                kSegmentationEpsilon) {
+      waypoint->lane = iter->lane;
+      waypoint->s = s - accumulated_s + iter->start_s;
+      if (waypoint->s < iter->start_s) {
+        waypoint->s = iter->start_s;
+      } else if (waypoint->s > iter->end_s) {
+        waypoint->s = iter->end_s;
+      }
+      has_projection = true;
+      break;
+    }
+  }
+  return has_projection;
+}
+
+bool RouteSegments::GetProjection(const common::math::Vec2d &point,
+                                  common::SLPoint *sl_point,
+                                  LaneWaypoint *waypoint) const {
+  double min_l = std::numeric_limits<double>::infinity();
+  double accumulated_s = 0.0;
+  bool has_projection = false;
+  for (auto iter = begin(); iter != end();
+       accumulated_s += (iter->end_s - iter->start_s), ++iter) {
+    double lane_s = 0.0;
+    double lane_l = 0.0;
+    if (!iter->lane->GetProjection(point, &lane_s, &lane_l)) {
+      AERROR << "Failed to get projection from point " << point.DebugString()
+             << " on lane " << iter->lane->id().id();
+      return false;
+    }
+    if (lane_s < iter->start_s - kSegmentationEpsilon ||
+        lane_s > iter->end_s + kSegmentationEpsilon) {
+      continue;
+    }
+    if (std::fabs(lane_l) < min_l) {
+      has_projection = true;
+      lane_s = std::max(iter->start_s, lane_s);
+      lane_s = std::min(iter->end_s, lane_s);
+      min_l = std::fabs(lane_l);
+      sl_point->set_l(lane_l);
+      sl_point->set_s(lane_s - iter->start_s + accumulated_s);
+      waypoint->lane = iter->lane;
+      waypoint->s = lane_s;
+    }
+  }
+  return has_projection;
+}
+
+void RouteSegments::SetPreviousAction(routing::ChangeLaneType action) {
+  previous_action_ = action;
+}
+
+routing::ChangeLaneType RouteSegments::PreviousAction() const {
+  return previous_action_;
+}
+
+void RouteSegments::SetNextAction(routing::ChangeLaneType action) {
+  next_action_ = action;
+}
+
+routing::ChangeLaneType RouteSegments::NextAction() const {
+  return next_action_;
+}
+
+//waypoint在segment中的话，就返回true
+bool RouteSegments::IsWaypointOnSegment(const LaneWaypoint &waypoint) const {
+  for (auto iter = begin(); iter != end(); ++iter) {
+    if (WithinLaneSegment(*iter, waypoint)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+//判断车辆是否可从当前车道驶入邻居车道（前面步骤所生成的）
+bool RouteSegments::CanDriveFrom(const LaneWaypoint &waypoint) const {
+  auto point = waypoint.lane->GetSmoothPoint(waypoint.s);
+
+  // 0 if waypoint is on segment, ok
+  //如果这个点adc_waypoint_就在passage对应的LaneSegments中，那么合法可驶入
+  if (IsWaypointOnSegment(waypoint)) {
+    return true;
+  }
+
+  // 1. should have valid projection.
+  LaneWaypoint segment_waypoint;
+  common::SLPoint route_sl;
+  //如果这个点投影到passage中，发现投影点均不在passage对应的LaneSegments中，
+  //那么就说明当前车辆已经不再这个passage道路段中了，不可驶入；如果满足以上条件，
+  //但是点到这个passage的投影距离过大，说明车辆横向距离太大，可能垮了好几个车道，那么不可驶入
+  bool has_projection = GetProjection(point, &route_sl, &segment_waypoint);
+  if (!has_projection) {
+    AERROR << "No projection from waypoint: " << waypoint.DebugString();
+    return false;
+  }
+  static constexpr double kMaxLaneWidth = 10.0;
+  if (std::fabs(route_sl.l()) > 2 * kMaxLaneWidth) {
+    return false;
+  }
+
+  // 2. heading should be the same.
+  //检测当前车辆所在车道和投影到passage中对应的LaneSegment所属的车道方向是否一致。必须小于90度，否则就是反向车道，不能直接驶入
+  double waypoint_heading = waypoint.lane->Heading(waypoint.s);
+  double segment_heading = segment_waypoint.lane->Heading(segment_waypoint.s);
+  double heading_diff =
+      common::math::AngleDiff(waypoint_heading, segment_heading);
+  if (std::fabs(heading_diff) > M_PI / 2) {
+    ADEBUG << "Angle diff too large:" << heading_diff;
+    return false;
+  }
+
+//segment_waypoint是车辆在passage中某个LaneSegment所属车道中心线上的投影点
+  // 3. the waypoint and the projected lane should not be separated apart.
+  //当前车辆所在车道和投影到passage中对应的LaneSegment所属车道必须是相邻的，不能跨车道驶入(每次只能变道一次，无法连续变道)。
+  double waypoint_left_width = 0.0;
+  double waypoint_right_width = 0.0;
+  waypoint.lane->GetWidth(waypoint.s, &waypoint_left_width,
+                          &waypoint_right_width);
+  double segment_left_width = 0.0;
+  double segment_right_width = 0.0;
+  segment_waypoint.lane->GetWidth(segment_waypoint.s, &segment_left_width,
+                                  &segment_right_width);
+  auto segment_projected_point =
+      segment_waypoint.lane->GetSmoothPoint(segment_waypoint.s);
+  double dist = common::util::DistanceXY(point, segment_projected_point);
+  const double kLaneSeparationDistance = 0.3;
+  //point和segment_projected_point为车辆在两个车道的关键点坐标
+  //如果车辆在passage右边，route_sl.l()<0，那么可以近似的使用
+  //waypoint_left_width+segment_right_width+kLaneSeparationDistance来估计当前车辆
+  //所在车道和投影到passage中对应的LaneSegment所属车道中心线之间的距离，
+  //kLaneSeparationDistance是中间分割线宽度。如果投影距离dist大于这个距离，则设置为无法变道，因为距离太大，无法一次性变道完成
+  if (route_sl.l() < 0) {  // waypoint at right side
+    if (dist >
+        waypoint_left_width + segment_right_width + kLaneSeparationDistance) {
+      AERROR << "waypoint is too far to reach: " << dist;
+      return false;
+    }
+  } else {  // waypoint at left side
+    if (dist >
+        waypoint_right_width + segment_left_width + kLaneSeparationDistance) {
+      AERROR << "waypoint is too far to reach: " << dist;
+      return false;
+    }
+  }
+
+  return true;
+}
+
+}  // namespace hdmap
+}  // namespace apollo
