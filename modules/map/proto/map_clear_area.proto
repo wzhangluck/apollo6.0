@@ -6,9 +6,9 @@ import "modules/map/proto/map_id.proto";
 import "modules/map/proto/map_geometry.proto";
 
 // A clear area means in which stopping car is prohibited
-
+//禁止停车
 message ClearArea {
-  optional Id id = 1;
-  repeated Id overlap_id = 2;
-  optional Polygon polygon = 3;
+  optional Id id = 1;            //编号
+  repeated Id overlap_id = 2;    //重叠id
+  optional Polygon polygon = 3;  //多边形
 }

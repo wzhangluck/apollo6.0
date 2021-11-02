@@ -36,6 +36,7 @@ message RoadROIBoundary {
 // defined in order to
 // use a road, If multiple road sections are defined, they must be listed in
 // order along the road
+//路段定义道路横断面，必须至少定义一个路段才能使用道路，如果定义了多个路段，则必须沿道路按顺序列出这些路段
 message RoadSection {
   optional Id id = 1;
   // lanes contained in this section

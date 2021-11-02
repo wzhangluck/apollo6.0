@@ -5,17 +5,17 @@ package apollo.hdmap;
 import "modules/common/proto/geometry.proto";
 import "modules/map/proto/map_geometry.proto";
 import "modules/map/proto/map_id.proto";
-
+//交通信号标志
 message Subsignal {
   enum Type {
-    UNKNOWN = 1;
-    CIRCLE = 2;
-    ARROW_LEFT = 3;
-    ARROW_FORWARD = 4;
-    ARROW_RIGHT = 5;
-    ARROW_LEFT_AND_FORWARD = 6;
-    ARROW_RIGHT_AND_FORWARD = 7;
-    ARROW_U_TURN = 8;
+    UNKNOWN = 1;    //未知
+    CIRCLE = 2;     //圈???
+    ARROW_LEFT = 3;  //左边
+    ARROW_FORWARD = 4;  //前面
+    ARROW_RIGHT = 5;    //右边
+    ARROW_LEFT_AND_FORWARD = 6;   //左前
+    ARROW_RIGHT_AND_FORWARD = 7;  //右前
+    ARROW_U_TURN = 8;   //掉头
   };
 
   optional Id id = 1;
@@ -45,13 +45,13 @@ message Signal {
   };
 
   optional Id id = 1;
-  optional Polygon boundary = 2;
-  repeated Subsignal subsignal = 3;
+  optional Polygon boundary = 2;    //多边形
+  repeated Subsignal subsignal = 3;   //子信号
   // TODO: add orientation. now no data support.
-  repeated Id overlap_id = 4;
-  optional Type type = 5;
+  repeated Id overlap_id = 4;   //重叠id
+  optional Type type = 5;      //这里的类型是主要指交通标识的个数及位置？？
   // stop line
-  repeated Curve stop_line = 6;
+  repeated Curve stop_line = 6;     //在哪里结束？
 
   repeated SignInfo sign_info = 7;
 }

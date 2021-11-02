@@ -3,7 +3,7 @@ syntax = "proto2";
 import "modules/map/proto/map_geometry.proto";
 
 package apollo.hdmap;
-
+// 限制速度
 // This proto defines the format of an auxiliary file that helps to
 // define the speed limit on certain area of road.
 // Apollo can use this file to quickly fix speed problems on maps,

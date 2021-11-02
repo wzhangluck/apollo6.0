@@ -4,7 +4,7 @@ package apollo.hdmap;
 
 import "modules/map/proto/map_id.proto";
 import "modules/map/proto/map_geometry.proto";
-
+//让行标志（美国才有）
 // A yield indicates that each driver must prepare to stop if necessary to let a
 // driver on another approach proceed.
 // A driver who stops or slows down to let another vehicle through has yielded
@@ -12,7 +12,7 @@ import "modules/map/proto/map_geometry.proto";
 message YieldSign {
   optional Id id = 1;
 
-  repeated Curve stop_line = 2;
+  repeated Curve stop_line = 2;//在哪里结束
 
   repeated Id overlap_id = 3;
 }
