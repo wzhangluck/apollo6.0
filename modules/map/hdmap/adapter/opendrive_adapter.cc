@@ -19,7 +19,7 @@ limitations under the License.
 #include "cyber/common/log.h"
 #include "modules/map/hdmap/adapter/proto_organizer.h"
 #include "modules/map/hdmap/adapter/xml_parser/status.h"
-
+//http://opendrive_adapter.cc则实现了地图的加载，转换为程序中的Map对象
 namespace apollo {
 namespace hdmap {
 namespace adapter {

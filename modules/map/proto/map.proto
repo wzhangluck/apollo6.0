@@ -25,10 +25,10 @@ message Projection {
 }
 
 message Header {
-  optional bytes version = 1;
-  optional bytes date = 2;
-  optional Projection projection = 3;
-  optional bytes district = 4;
+  optional bytes version = 1;//地图版本
+  optional bytes date = 2;//地图时间
+  optional Projection projection = 3;//投影方法
+  optional bytes district = 4;//区
   optional bytes generation = 5;
   optional bytes rev_major = 6;
   optional bytes rev_minor = 7;
@@ -36,23 +36,23 @@ message Header {
   optional double top = 9;
   optional double right = 10;
   optional double bottom = 11;
-  optional bytes vendor = 12;
+  optional bytes vendor = 12;//供应商
 }
 
 message Map {
   optional Header header = 1;
 
-  repeated Crosswalk crosswalk = 2;
-  repeated Junction junction = 3;
-  repeated Lane lane = 4;
-  repeated StopSign stop_sign = 5;
-  repeated Signal signal = 6;
-  repeated YieldSign yield = 7;
-  repeated Overlap overlap = 8;
-  repeated ClearArea clear_area = 9;
-  repeated SpeedBump speed_bump = 10;
-  repeated Road road = 11;
-  repeated ParkingSpace parking_space = 12;
+  repeated Crosswalk crosswalk = 2;//人行横道
+  repeated Junction junction = 3;//交叉路口
+  repeated Lane lane = 4; //车道
+  repeated StopSign stop_sign = 5;//停车标志
+  repeated Signal signal = 6; //信号灯
+  repeated YieldSign yield = 7;//让车标志
+  repeated Overlap overlap = 8;//重叠区域
+  repeated ClearArea clear_area = 9;//禁止停车区域
+  repeated SpeedBump speed_bump = 10;//减速带
+  repeated Road road = 11;//道路
+  repeated ParkingSpace parking_space = 12;//停车区域
   repeated PNCJunction pnc_junction = 13;
   repeated RSU rsu = 14;
 }
