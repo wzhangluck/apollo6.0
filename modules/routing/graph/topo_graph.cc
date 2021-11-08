@@ -88,6 +88,7 @@ const std::string& TopoGraph::MapVersion() const { return map_version_; }
 
 const std::string& TopoGraph::MapDistrict() const { return map_district_; }
 
+//根据输入的车道id，利用node_index_map_得到该车道id对应的topo_nodes_中的索引
 const TopoNode* TopoGraph::GetNode(const std::string& id) const {
   const auto& iter = node_index_map_.find(id);
   if (iter == node_index_map_.end()) {
@@ -96,6 +97,7 @@ const TopoNode* TopoGraph::GetNode(const std::string& id) const {
   return topo_nodes_[iter->second].get();
 }
 
+//查找道路id所包含的node节点
 void TopoGraph::GetNodesByRoadId(
     const std::string& road_id,
     std::unordered_set<const TopoNode*>* const node_in_road) const {

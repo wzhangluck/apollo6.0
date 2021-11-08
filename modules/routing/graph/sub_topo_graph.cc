@@ -35,6 +35,7 @@ bool IsCloseEnough(double s1, double s2) {
   return std::fabs(s1 - s2) < MIN_DIFF_LENGTH;
 }
 
+//合并srange，block_range中，第i个为origin_range的第i个到最后一个的合并结果
 void MergeBlockRange(const TopoNode* topo_node,
                      const std::vector<NodeSRange>& origin_range,
                      std::vector<NodeSRange>* block_range) {
@@ -61,10 +62,11 @@ void MergeBlockRange(const TopoNode* topo_node,
   }
 }
 
+//得到分类后的srange
 void GetSortedValidRange(const TopoNode* topo_node,
                          const std::vector<NodeSRange>& origin_range,
                          std::vector<NodeSRange>* valid_range) {
-  std::vector<NodeSRange> block_range;
+  std::vector<NodeSRange> block_range;//合并后的srange
   MergeBlockRange(topo_node, origin_range, &block_range);
   double start_s = topo_node->StartS();
   double end_s = topo_node->EndS();

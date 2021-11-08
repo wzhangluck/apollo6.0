@@ -23,6 +23,8 @@ constexpr double S_GAP_FOR_BLACK = 0.01;
 
 namespace {
 
+
+//把s往前移动一个距离
 double MoveSForward(double s, double upper_bound) {
   if (s > upper_bound) {
     AERROR << "Illegal s: " << s << ", upper bound: " << upper_bound;
@@ -35,6 +37,8 @@ double MoveSForward(double s, double upper_bound) {
   }
 }
 
+//把s往回移动一个距离S_GAP_FOR_BLACK，下限是lower_bound
+//此处S_GAP_FOR_BLACK=0.01，lower_bound为0，意味着s位置基本未变
 double MoveSBackward(double s, double lower_bound) {
   if (s < lower_bound) {
     AERROR << "Illegal s: " << s << ", lower bound: " << lower_bound;
@@ -47,6 +51,7 @@ double MoveSBackward(double s, double lower_bound) {
   }
 }
 
+//遍历node的每一条左右侧边（自身node是边的终点)，根据边获取边的终点node，保存，递归检索出发节点的边和它的出发节点
 void GetOutParallelLane(const TopoNode* node,
                         std::unordered_set<const TopoNode*>* const node_set) {
   for (const auto* edge : node->OutToLeftOrRightEdge()) {
@@ -58,6 +63,7 @@ void GetOutParallelLane(const TopoNode* node,
   }
 }
 
+//遍历node的每一条边（自身node是边的终点)，根据边获取边的出发node，保存，递归检索出发节点的边和它的出发节点
 void GetInParallelLane(const TopoNode* node,
                        std::unordered_set<const TopoNode*>* const node_set) {
   for (const auto* edge : node->InFromLeftOrRightEdge()) {
@@ -70,6 +76,7 @@ void GetInParallelLane(const TopoNode* node,
 }
 
 // for new navigator
+//查找道路id所包含的node节点
 void AddBlackMapFromRoad(const RoutingRequest& request, const TopoGraph* graph,
                          TopoRangeManager* const range_manager) {
   for (const auto& road_id : request.blacklisted_road()) {
@@ -82,6 +89,7 @@ void AddBlackMapFromRoad(const RoutingRequest& request, const TopoGraph* graph,
 }
 
 // for new navigator
+//根据RoutingRequest的黑名单车道，得到对应的node，添加到TopoRangeManager中，包括车道节点及对应的起始-终止s范围
 void AddBlackMapFromLane(const RoutingRequest& request, const TopoGraph* graph,
                          TopoRangeManager* const range_manager) {
   for (const auto& lane : request.blacklisted_lane()) {
@@ -92,17 +100,19 @@ void AddBlackMapFromLane(const RoutingRequest& request, const TopoGraph* graph,
   }
 }
 
+//把该车道的子节点车道加入到par_node_set
 void AddBlackMapFromOutParallel(const TopoNode* node, double cut_ratio,
                                 TopoRangeManager* const range_manager) {
   std::unordered_set<const TopoNode*> par_node_set;
   GetOutParallelLane(node, &par_node_set);
   par_node_set.erase(node);
+  //遍历子节点，加入
   for (const auto* par_node : par_node_set) {
     double par_cut_s = cut_ratio * par_node->Length();
     range_manager->Add(par_node, par_cut_s, par_cut_s);
   }
 }
-
+//把该车道的父节点的车道加入到par_node_set
 void AddBlackMapFromInParallel(const TopoNode* node, double cut_ratio,
                                TopoRangeManager* const range_manager) {
   std::unordered_set<const TopoNode*> par_node_set;
@@ -116,6 +126,7 @@ void AddBlackMapFromInParallel(const TopoNode* node, double cut_ratio,
 
 }  // namespace
 
+//把黑名单的道路和车道id添加到range_manager
 void BlackListRangeGenerator::GenerateBlackMapFromRequest(
     const RoutingRequest& request, const TopoGraph* graph,
     TopoRangeManager* const range_manager) const {
@@ -131,6 +142,8 @@ void BlackListRangeGenerator::AddBlackMapFromTerminal(
   double end_length = dest_node->Length();
 
   static constexpr double kEpsilon = 1e-2;
+  //注意：每条车道的start_s都是按照初始点s为0计算的
+  //如果s＞车道长度，并且未超出太多，取start_s_adjusted为start_length，否则仍为start_s
   const double start_s_adjusted =
       (start_s > start_length && start_s - start_length <= kEpsilon) ?
           start_length : start_s;
@@ -148,7 +161,9 @@ void BlackListRangeGenerator::AddBlackMapFromTerminal(
   }
 
   double start_cut_s = MoveSBackward(start_s_adjusted, 0.0);
+  //该节点增加一个range，起始终止同一个点，因此range就是一个点
   range_manager->Add(src_node, start_cut_s, start_cut_s);
+  //range_manager添加左右平行车道节点及各自的range（start_cut_s / start_length）
   AddBlackMapFromOutParallel(src_node, start_cut_s / start_length,
                              range_manager);
 

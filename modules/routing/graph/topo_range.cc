@@ -23,10 +23,11 @@
 namespace apollo {
 namespace routing {
 
+//根据起始-终止s距离判定是否够换道阈值
 bool NodeSRange::IsEnoughForChangeLane(double start_s, double end_s) {
   return IsEnoughForChangeLane(end_s - start_s);
 }
-
+//根据起始-终止s距离判定是否够换道阈值
 bool NodeSRange::IsEnoughForChangeLane(double length) {
   return (length > FLAGS_min_length_for_lane_change);
 }
@@ -53,6 +54,7 @@ void NodeSRange::SetStartS(double start_s) { start_s_ = start_s; }
 
 void NodeSRange::SetEndS(double end_s) { end_s_ = end_s; }
 
+//两个NodeSRange的对象合并，取各自的起点最小值作为起点，各自的最大值作为终点
 bool NodeSRange::MergeRangeOverlap(const NodeSRange& other) {
   if (!IsValid() || !other.IsValid()) {
     return false;

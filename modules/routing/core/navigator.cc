@@ -28,6 +28,7 @@ namespace {
 
 using apollo::common::ErrorCode;
 
+//打印RequestInfo，包括点所属节点信息和黑名单车道信息
 bool ShowRequestInfo(const RoutingRequest& request, const TopoGraph* graph) {
   for (const auto& wp : request.waypoint()) {
     const auto* node = graph->GetNode(wp.id());
@@ -54,6 +55,7 @@ bool ShowRequestInfo(const RoutingRequest& request, const TopoGraph* graph) {
   return true;
 }
 
+//遍历request的点，得到其对应的拓扑地图的node节点
 bool GetWayNodes(const RoutingRequest& request, const TopoGraph* graph,
                  std::vector<const TopoNode*>* const way_nodes,
                  std::vector<double>* const way_s) {
@@ -121,10 +123,15 @@ bool Navigator::Init(const RoutingRequest& request, const TopoGraph* graph,
                      std::vector<const TopoNode*>* const way_nodes,
                      std::vector<double>* const way_s) {
   Clear();
+  //// 获取routing请求，对应图中的节点
   if (!GetWayNodes(request, graph_.get(), way_nodes, way_s)) {
     AERROR << "Failed to find search terminal point in graph!";
     return false;
   }
+  // 根据请求生成对应的黑名单lane
+  //在routing请求中可以指定黑名单路和车道，这样routing请求将不会计算这些车道。
+  //应用场景是需要避开拥堵路段，这需要能够根据情况实时请求，在routing_request中
+  //可以设置黑名单也刚好可以满足上面的需求，如果直接把黑名单路段固定，则是一个比较蠢的设计。
   black_list_generator_->GenerateBlackMapFromRequest(request, graph_.get(),
                                                      &topo_range_manager_);
   return true;
@@ -148,15 +155,18 @@ bool Navigator::MergeRoute(
   return true;
 }
 
+//主函数，输入包括：拓扑地图、需要途经的节点way_nodes，其对应s值
 bool Navigator::SearchRouteByStrategy(
     const TopoGraph* graph, const std::vector<const TopoNode*>& way_nodes,
     const std::vector<double>& way_s,
     std::vector<NodeWithRange>* const result_nodes) const {
   std::unique_ptr<Strategy> strategy_ptr;
-  strategy_ptr.reset(new AStarStrategy(FLAGS_enable_change_lane_in_result));
+  //// 通过Astar算法来查找路径
+  strategy_ptr.reset(new AStarStrategy(FLAGS_enable_change_lane_in_result));//配置默认为true
 
   result_nodes->clear();
-  std::vector<NodeWithRange> node_vec;
+  std::vector<NodeWithRange> node_vec;//继承自NodeSRange
+  // 编译routing_request节点
   for (size_t i = 1; i < way_nodes.size(); ++i) {
     const auto* way_start = way_nodes[i - 1];
     const auto* way_end = way_nodes[i];
@@ -164,16 +174,21 @@ bool Navigator::SearchRouteByStrategy(
     double way_end_s = way_s[i];
 
     TopoRangeManager full_range_manager = topo_range_manager_;
+    // 添加黑名单，这里主要是把车道根据起点和终点做分割。
+    //full_range_manager包含way_s所在车道节点srange和相邻车道的srange（其实就是一个点）
     black_list_generator_->AddBlackMapFromTerminal(
         way_start, way_end, way_start_s, way_end_s, &full_range_manager);
-
+    // 因为对车道做了分割，这里会创建子图，比如一个车道分成2个子节点，
+    // 2个子节点会创建一张子图。
     SubTopoGraph sub_graph(full_range_manager.RangeMap());
+     // 获取起点
     const auto* start = sub_graph.GetSubNodeWithS(way_start, way_start_s);
     if (start == nullptr) {
       AERROR << "Sub graph node is nullptr, origin node id: "
              << way_start->LaneId() << ", s:" << way_start_s;
       return false;
     }
+    // 获取终点
     const auto* end = sub_graph.GetSubNodeWithS(way_end, way_end_s);
     if (end == nullptr) {
       AERROR << "Sub graph node is nullptr, origin node id: "
@@ -181,6 +196,7 @@ bool Navigator::SearchRouteByStrategy(
       return false;
     }
 
+    // 通过Astar查找最优路径
     std::vector<NodeWithRange> cur_result_nodes;
     if (!strategy_ptr->Search(graph, &sub_graph, start, end,
                               &cur_result_nodes)) {
@@ -189,10 +205,11 @@ bool Navigator::SearchRouteByStrategy(
       return false;
     }
 
+// 保存结果到node_vec
     node_vec.insert(node_vec.end(), cur_result_nodes.begin(),
                     cur_result_nodes.end());
   }
-
+// 合并Route
   if (!MergeRoute(node_vec, result_nodes)) {
     AERROR << "Failed to merge route.";
     return false;
@@ -202,13 +219,14 @@ bool Navigator::SearchRouteByStrategy(
 
 bool Navigator::SearchRoute(const RoutingRequest& request,
                             RoutingResponse* const response) {
+  //信息打印
   if (!ShowRequestInfo(request, graph_.get())) {
     SetErrorCode(ErrorCode::ROUTING_ERROR_REQUEST,
                  "Error encountered when reading request point!",
                  response->mutable_status());
     return false;
   }
-
+  //navigator是否就绪
   if (!IsReady()) {
     SetErrorCode(ErrorCode::ROUTING_ERROR_NOT_READY, "Navigator is not ready!",
                  response->mutable_status());
@@ -216,6 +234,7 @@ bool Navigator::SearchRoute(const RoutingRequest& request,
   }
   std::vector<const TopoNode*> way_nodes;
   std::vector<double> way_s;
+  //根据request和拓扑地图，初始化，获取节点node和s
   if (!Init(request, graph_.get(), &way_nodes, &way_s)) {
     SetErrorCode(ErrorCode::ROUTING_ERROR_NOT_READY,
                  "Failed to initialize navigator!", response->mutable_status());

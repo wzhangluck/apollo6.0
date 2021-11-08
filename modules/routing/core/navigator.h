@@ -55,7 +55,7 @@ class Navigator {
   bool is_ready_ = false;
   std::unique_ptr<TopoGraph> graph_;
 
-  TopoRangeManager topo_range_manager_;
+  TopoRangeManager topo_range_manager_;//黑名单
 
   std::unique_ptr<BlackListRangeGenerator> black_list_generator_;
   std::unique_ptr<ResultGenerator> result_generator_;
