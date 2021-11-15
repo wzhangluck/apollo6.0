@@ -224,10 +224,10 @@ class ReferenceLine {
   /**
    * This speed limit overrides the lane speed limit
    **/
-  std::vector<SpeedLimit> speed_limit_;
+  std::vector<SpeedLimit> speed_limit_;//因为是一个数组，因此一个参考线中可以有多段不同的限速。
   std::vector<ReferencePoint> reference_points_;
-  hdmap::Path map_path_;
-  uint32_t priority_ = 0;
+  hdmap::Path map_path_;//map_path_就是地图中参考线，把参考线中的点转换到地图中，因此map_path_中的点和参考点数组的大小是一致的。
+  uint32_t priority_ = 0;//优先级则表示了当前参考线的优先级，用于后面有多个参考线的时候进行挑选。
 };
 
 }  // namespace planning

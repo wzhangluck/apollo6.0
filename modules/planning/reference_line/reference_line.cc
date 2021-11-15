@@ -74,6 +74,7 @@ bool ReferenceLine::Stitch(const ReferenceLine& other) {
     AWARN << "The other reference line is empty.";
     return true;
   }
+  //1. 找到起点的交点
   auto first_point = reference_points_.front();
   common::SLPoint first_sl;
   if (!other.XYToSL(first_point, &first_sl)) {
@@ -89,17 +90,21 @@ bool ReferenceLine::Stitch(const ReferenceLine& other) {
     return false;
   }
   bool last_join = last_sl.s() > 0 && last_sl.s() < other.Length();
+//3. 如果起点和终点都没有交点，则退出
 
   if (!first_join && !last_join) {
     AERROR << "These reference lines are not connected.";
     return false;
   }
+// 累积s值
 
   const auto& accumulated_s = other.map_path().accumulated_s();
   const auto& other_points = other.reference_points();
   auto lower = accumulated_s.begin();
   static constexpr double kStitchingError = 1e-1;
   if (first_join) {
+    //// 4. 如果横向偏移大于0.1m，则退出
+
     if (first_sl.l() > kStitchingError) {
       AERROR << "lateral stitching error on first join of reference line too "
                 "big, stitching fails";
@@ -107,6 +112,7 @@ bool ReferenceLine::Stitch(const ReferenceLine& other) {
     }
     lower = std::lower_bound(accumulated_s.begin(), accumulated_s.end(),
                              first_sl.s());
+                             // 4.1 因为this的起点在other之后，插入other的起点到this的起点
     size_t start_i = std::distance(accumulated_s.begin(), lower);
     reference_points_.insert(reference_points_.begin(), other_points.begin(),
                              other_points.begin() + start_i);

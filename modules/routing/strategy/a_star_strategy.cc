@@ -231,8 +231,8 @@ bool AStarStrategy::Search(const TopoGraph* graph,
   std::priority_queue<SearchNode> open_set_detail;
 
   SearchNode src_search_node(src_node);
-  src_search_node.f = HeuristicCost(src_node, dest_node);
-  open_set_detail.push(src_search_node);
+  src_search_node.f = HeuristicCost(src_node, dest_node);// 计算起点到终点启发式代价\ 
+  open_set_detail.push(src_search_node);//计算节点node到终点node剩余距离
 
   open_set_.insert(src_node);
   g_score_[src_node] = 0.0;
