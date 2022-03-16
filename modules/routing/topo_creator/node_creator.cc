@@ -70,7 +70,7 @@ void AddOutBoundary(const LaneBoundary& bound, double lane_length,
     }
   }
 }
-
+// 根据lane的边界，添加能够变道的路段
 void InitNodeInfo(const Lane& lane, const std::string& road_id,
                   Node* const node) {
   double lane_length = GetLaneLength(lane);
@@ -96,7 +96,9 @@ void InitNodeCost(const Lane& lane, const RoutingConfig& routing_config,
   double ratio = speed_limit >= routing_config.base_speed()
                      ? std::sqrt(routing_config.base_speed() / speed_limit)
                      : 1.0;
+                      // 1. 根据道路长度和速度限制来计算代价
   double cost = lane_length * ratio;
+  // 2. 掉头代价 > 左转代价 > 右转的代价
   if (lane.has_turn()) {
     if (lane.turn() == Lane::LEFT_TURN) {
       cost += routing_config.left_turn_penalty();
@@ -113,8 +115,8 @@ void InitNodeCost(const Lane& lane, const RoutingConfig& routing_config,
 
 void GetPbNode(const hdmap::Lane& lane, const std::string& road_id,
                const RoutingConfig& routingconfig, Node* const node) {
-  InitNodeInfo(lane, road_id, node);
-  InitNodeCost(lane, routingconfig, node);
+  InitNodeInfo(lane, road_id, node);// 1. 初始化节点信息
+  InitNodeCost(lane, routingconfig, node);// 2. 初始化节点代价
 }
 
 }  // namespace node_creator
