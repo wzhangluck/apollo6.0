@@ -18,7 +18,7 @@ message Transform {
 }
 
 message Extrinsics {
-  repeated Transform tansforms = 1;
+  repeated Transform tansforms = 1;//平移旋转矩阵
 }
 
 // Vehicle parameters shared among several modules.
@@ -44,16 +44,17 @@ message VehicleID {
   optional string other_unique_id = 3;
 }
 
+//车辆延迟参数，转向、油门、制动都会用这个结构体，死区，上升时间，峰值时间，
 message LatencyParam {
   // latency parameters, in second (s)
   optional double dead_time = 1;
-  optional double rise_time = 2;
-  optional double peak_time = 3;
-  optional double settling_time = 4;
+  optional double rise_time = 2;//上升时间是指响应曲线从零时刻到首次达到稳态值的时间，通常定义为响应曲线从稳态值的10%上升到稳态值90%所需的时间。
+  optional double peak_time = 3;//响应曲线达到第一个峰值所需要的时间
+  optional double settling_time = 4;//建立时间：建立时间是阶跃响应进入和停留在最终值的特定误差范围内的所需时间。
 }
 
 message VehicleParam {
-  optional VehicleBrand brand = 1;
+  optional VehicleBrand brand = 1;//品牌
   // Car center point is car reference point, i.e., center of rear axle.
   optional VehicleID vehicle_id = 2;
   optional double front_edge_to_center = 3 [default = nan];
@@ -83,10 +84,10 @@ message VehicleParam {
   optional double wheel_base = 17 [default = nan];
   // Tire effective rolling radius (vertical distance between the wheel center
   // and the ground).
-  optional double wheel_rolling_radius = 18 [default = nan];
+  optional double wheel_rolling_radius = 18 [default = nan];//轮胎半径
 
   // minimum differentiable vehicle speed, in m/s
-  optional float max_abs_speed_when_stopped = 19 [default = nan];
+  optional float max_abs_speed_when_stopped = 19 [default = nan];//判断车辆静止的速度
 
   // minimum value get from chassis.brake, in percentage
   optional double brake_deadzone = 20 [default = nan];
@@ -102,5 +103,5 @@ message VehicleParam {
 message VehicleConfig {
   optional apollo.common.Header header = 1;
   optional VehicleParam vehicle_param = 2;
-  optional Extrinsics extrinsics = 3;
+  optional Extrinsics extrinsics = 3;//外参
 }

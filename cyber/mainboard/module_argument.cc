@@ -20,7 +20,7 @@
 #include <libgen.h>
 
 using apollo::cyber::common::GlobalData;
-
+////模块输入参数,主要是解析加载DAG文件时候带的参数.
 namespace apollo {
 namespace cyber {
 namespace mainboard {

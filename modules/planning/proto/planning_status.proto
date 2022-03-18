@@ -11,7 +11,7 @@ import "modules/routing/proto/routing.proto";
   planning module.
   It will not be refreshed in each planning cycle.
 */
-
+//无保护裸露交叉路口
 message BareIntersectionStatus {
   optional string current_pnc_junction_overlap_id = 1;
   optional string done_pnc_junction_overlap_id = 2;
@@ -26,17 +26,17 @@ message ChangeLaneStatus {
   }
   optional Status status = 1;
   // the id of the route segment that the vehicle is driving on
-  optional string path_id = 2;
+  optional string path_id = 2;//车辆当前所在车道id（road passage route)
   // the time stamp when the state started.
-  optional double timestamp = 3;
+  optional double timestamp = 3;//进入该状态时的时间戳
   // the starting position only after which lane-change can happen.
-  optional bool exist_lane_change_start_position = 4 [default = false];
-  optional apollo.common.Point3D lane_change_start_position = 5;
+  optional bool exist_lane_change_start_position = 4 [default = false];//存在换道的起始位置
+  optional apollo.common.Point3D lane_change_start_position = 5;//换道的起始位置
   // the last time stamp when the lane-change planning succeed.
   optional double last_succeed_timestamp = 6;
   // if the current path and speed planning on the lane-change
   // reference-line succeed.
-  optional bool is_current_opt_succeed = 7 [default = false];
+  optional bool is_current_opt_succeed = 7 [default = false];//基于换道的车道参考线是否规划成功
   // denotes if the surrounding area is clear for ego vehicle to
   // change lane at this moment.
   optional bool is_clear_to_change_lane = 8 [default = false];

@@ -55,6 +55,7 @@ TrajectoryPoint TrajectoryStitcher::ComputeTrajectoryPointFromVehicleState(
   return point;
 }
 
+//重新初始化拼接轨迹初始位置
 std::vector<TrajectoryPoint>
 TrajectoryStitcher::ComputeReinitStitchingTrajectory(
     const double planning_cycle_time, const VehicleState& vehicle_state) {
@@ -62,11 +63,12 @@ TrajectoryStitcher::ComputeReinitStitchingTrajectory(
   static constexpr double kEpsilon_v = 0.1;
   static constexpr double kEpsilon_a = 0.4;
   // TODO(Jinyun/Yu): adjust kEpsilon if corrected IMU acceleration provided
+  //线速度、加速度都小，直接使用vehicle_state
   if (std::abs(vehicle_state.linear_velocity()) < kEpsilon_v &&
       std::abs(vehicle_state.linear_acceleration()) < kEpsilon_a) {
     reinit_point = ComputeTrajectoryPointFromVehicleState(planning_cycle_time,
                                                           vehicle_state);
-  } else {
+  } else {//预测vehicle_state
     VehicleState predicted_vehicle_state;
     predicted_vehicle_state =
         VehicleModel::Predict(planning_cycle_time, vehicle_state);
@@ -119,25 +121,25 @@ void TrajectoryStitcher::TransformLastPublishedTrajectory(
 std::vector<TrajectoryPoint> TrajectoryStitcher::ComputeStitchingTrajectory(
     const VehicleState& vehicle_state, const double current_timestamp,
     const double planning_cycle_time, const size_t preserved_points_num,
-    const bool replan_by_offset, const PublishableTrajectory* prev_trajectory,
+    const bool replan_by_offset/*道路是true，openspace是false*/, const PublishableTrajectory* prev_trajectory,
     std::string* replan_reason) {
-  if (!FLAGS_enable_trajectory_stitcher) {
+  if (!FLAGS_enable_trajectory_stitcher) {//如果没有使能轨迹拼接
     *replan_reason = "stitch is disabled by gflag.";
     return ComputeReinitStitchingTrajectory(planning_cycle_time, vehicle_state);
   }
-  if (!prev_trajectory) {
+  if (!prev_trajectory) {//没有上一帧的轨迹时
     *replan_reason = "replan for no previous trajectory.";
     return ComputeReinitStitchingTrajectory(planning_cycle_time, vehicle_state);
   }
 
-  if (vehicle_state.driving_mode() != canbus::Chassis::COMPLETE_AUTO_DRIVE) {
+  if (vehicle_state.driving_mode() != canbus::Chassis::COMPLETE_AUTO_DRIVE) {//自动驾驶模式关闭时
     *replan_reason = "replan for manual mode.";
     return ComputeReinitStitchingTrajectory(planning_cycle_time, vehicle_state);
   }
 
   size_t prev_trajectory_size = prev_trajectory->NumOfPoints();
 
-  if (prev_trajectory_size == 0) {
+  if (prev_trajectory_size == 0) {//上一帧的轨迹为空
     ADEBUG << "Projected trajectory at time [" << prev_trajectory->header_time()
            << "] size is zero! Previous planning not exist or failed. Use "
               "origin car status instead.";
@@ -148,10 +150,10 @@ std::vector<TrajectoryPoint> TrajectoryStitcher::ComputeStitchingTrajectory(
   const double veh_rel_time =
       current_timestamp - prev_trajectory->header_time();
 
-  size_t time_matched_index =
+  size_t time_matched_index =//当前时刻匹配的轨迹点索引
       prev_trajectory->QueryLowerBoundPoint(veh_rel_time);
 
-  if (time_matched_index == 0 &&
+  if (time_matched_index == 0 &&//如果匹配索引为上一周期规划的第一个点 并且 时间小于上周期规划的起始时间，触发重规划
       veh_rel_time < prev_trajectory->StartPoint().relative_time()) {
     AWARN << "current time smaller than the previous trajectory's first time";
     *replan_reason =
@@ -159,14 +161,14 @@ std::vector<TrajectoryPoint> TrajectoryStitcher::ComputeStitchingTrajectory(
         "time.";
     return ComputeReinitStitchingTrajectory(planning_cycle_time, vehicle_state);
   }
-  if (time_matched_index + 1 >= prev_trajectory_size) {
+  if (time_matched_index + 1 >= prev_trajectory_size) {//如果索引为最后一个点，触发重规划
     AWARN << "current time beyond the previous trajectory's last time";
     *replan_reason =
         "replan for current time beyond the previous trajectory's last time";
     return ComputeReinitStitchingTrajectory(planning_cycle_time, vehicle_state);
   }
 
-  auto time_matched_point = prev_trajectory->TrajectoryPointAt(
+  auto time_matched_point = prev_trajectory->TrajectoryPointAt(//匹配点对应的TrajectoryPoint
       static_cast<uint32_t>(time_matched_index));
 
   if (!time_matched_point.has_path_point()) {
@@ -174,22 +176,22 @@ std::vector<TrajectoryPoint> TrajectoryStitcher::ComputeStitchingTrajectory(
     return ComputeReinitStitchingTrajectory(planning_cycle_time, vehicle_state);
   }
 
-  size_t position_matched_index = prev_trajectory->QueryNearestPointWithBuffer(
+  size_t position_matched_index = prev_trajectory->QueryNearestPointWithBuffer(//车辆位置最近的轨迹点
       {vehicle_state.x(), vehicle_state.y()}, 1.0e-6);
 
-  auto frenet_sd = ComputePositionProjection(
+  auto frenet_sd = ComputePositionProjection(//计算vehicle_state的x，y在position_matched_index关键点航向投影，计算s，l
       vehicle_state.x(), vehicle_state.y(),
       prev_trajectory->TrajectoryPointAt(
           static_cast<uint32_t>(position_matched_index)));
 
-  if (replan_by_offset) {
+  if (replan_by_offset) {/*道路是true，openspace是false*/
     auto lon_diff = time_matched_point.path_point().s() - frenet_sd.first;
     auto lat_diff = frenet_sd.second;
 
     ADEBUG << "Control lateral diff: " << lat_diff
            << ", longitudinal diff: " << lon_diff;
 
-    if (std::fabs(lat_diff) > FLAGS_replan_lateral_distance_threshold) {
+    if (std::fabs(lat_diff) > FLAGS_replan_lateral_distance_threshold) {//默认0.5
       const std::string msg = absl::StrCat(
           "the distance between matched point and actual position is too "
           "large. Replan is triggered. lat_diff = ",
@@ -200,7 +202,7 @@ std::vector<TrajectoryPoint> TrajectoryStitcher::ComputeStitchingTrajectory(
                                               vehicle_state);
     }
 
-    if (std::fabs(lon_diff) > FLAGS_replan_longitudinal_distance_threshold) {
+    if (std::fabs(lon_diff) > FLAGS_replan_longitudinal_distance_threshold) {//默认2.5
       const std::string msg = absl::StrCat(
           "the distance between matched point and actual position is too "
           "large. Replan is triggered. lon_diff = ",
@@ -215,6 +217,7 @@ std::vector<TrajectoryPoint> TrajectoryStitcher::ComputeStitchingTrajectory(
               "disabled";
   }
 
+//根据 （当前时刻的绝对时间-上一时刻轨迹的初始时间+planning_cycle_time） 得到forward_rel_time
   double forward_rel_time = veh_rel_time + planning_cycle_time;
 
   size_t forward_time_index =
@@ -223,7 +226,7 @@ std::vector<TrajectoryPoint> TrajectoryStitcher::ComputeStitchingTrajectory(
   ADEBUG << "Position matched index:\t" << position_matched_index;
   ADEBUG << "Time matched index:\t" << time_matched_index;
 
-  auto matched_index = std::min(time_matched_index, position_matched_index);
+  auto matched_index = std::min(time_matched_index, position_matched_index);//时间匹配，位置匹配索引取最小的
 
   std::vector<TrajectoryPoint> stitching_trajectory(
       prev_trajectory->begin() +
@@ -245,6 +248,7 @@ std::vector<TrajectoryPoint> TrajectoryStitcher::ComputeStitchingTrajectory(
   return stitching_trajectory;
 }
 
+//计算x，y在p关键点航向投影，计算s，l
 std::pair<double, double> TrajectoryStitcher::ComputePositionProjection(
     const double x, const double y, const TrajectoryPoint& p) {
   Vec2d v(x - p.path_point().x(), y - p.path_point().y());

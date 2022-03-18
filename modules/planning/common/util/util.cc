@@ -31,7 +31,7 @@ namespace util {
 using apollo::common::VehicleState;
 using apollo::hdmap::PathOverlap;
 using apollo::routing::RoutingResponse;
-
+//判断vehicle_state是否有异常值
 bool IsVehicleStateValid(const VehicleState& vehicle_state) {
   if (std::isnan(vehicle_state.x()) || std::isnan(vehicle_state.y()) ||
       std::isnan(vehicle_state.z()) || std::isnan(vehicle_state.heading()) ||
@@ -43,6 +43,7 @@ bool IsVehicleStateValid(const VehicleState& vehicle_state) {
   return true;
 }
 
+//通过判断消息头计数器判断路由请求是否有更新
 bool IsDifferentRouting(const RoutingResponse& first,
                         const RoutingResponse& second) {
   if (first.has_header() && second.has_header()) {

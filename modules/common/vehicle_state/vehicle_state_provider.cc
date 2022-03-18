@@ -39,6 +39,7 @@ Status VehicleStateProvider::Update(
         "localization:\n", localization.DebugString());
     return Status(ErrorCode::LOCALIZATION_ERROR, msg);
   }
+  //车辆状态信息时间戳以定位的为准，定位无实际戳以线控为准
   if (localization.has_measurement_time()) {
     vehicle_state_.set_timestamp(localization.measurement_time());
   } else if (localization.header().has_timestamp_sec()) {
@@ -48,25 +49,25 @@ Status VehicleStateProvider::Update(
               "time instead.";
     vehicle_state_.set_timestamp(chassis.header().timestamp_sec());
   }
-
+//档位
   if (chassis.has_gear_location()) {
     vehicle_state_.set_gear(chassis.gear_location());
   } else {
     vehicle_state_.set_gear(canbus::Chassis::GEAR_NONE);
   }
-
+//速度，来自线控底盘
   if (chassis.has_speed_mps()) {
     vehicle_state_.set_linear_velocity(chassis.speed_mps());
     if (!FLAGS_reverse_heading_vehicle_state &&
-        vehicle_state_.gear() == canbus::Chassis::GEAR_REVERSE) {
+        vehicle_state_.gear() == canbus::Chassis::GEAR_REVERSE) {//如果倒车，设置为负
       vehicle_state_.set_linear_velocity(-vehicle_state_.linear_velocity());
     }
   }
-
+//转角
   if (chassis.has_steering_percentage()) {
     vehicle_state_.set_steering_percentage(chassis.steering_percentage());
   }
-
+//设置曲率  角速度（定位）/线速度（线控）
   static constexpr double kEpsilon = 1e-6;
   if (std::abs(vehicle_state_.linear_velocity()) < kEpsilon) {
     vehicle_state_.set_kappa(0.0);
@@ -74,12 +75,13 @@ Status VehicleStateProvider::Update(
     vehicle_state_.set_kappa(vehicle_state_.angular_velocity() /
                              vehicle_state_.linear_velocity());
   }
-
+//驾驶模式
   vehicle_state_.set_driving_mode(chassis.driving_mode());
 
   return Status::OK();
 }
 
+//源自定位信息 组成车辆状态，（不包含线速度）
 bool VehicleStateProvider::ConstructExceptLinearVelocity(
     const localization::LocalizationEstimate &localization) {
   if (!localization.has_pose()) {
@@ -229,10 +231,12 @@ const VehicleState &VehicleStateProvider::vehicle_state() const {
   return vehicle_state_;
 }
 
+//恒定速度、角速度模型计算t时刻后位置
 math::Vec2d VehicleStateProvider::EstimateFuturePosition(const double t) const {
   Eigen::Vector3d vec_distance(0.0, 0.0, 0.0);
   double v = vehicle_state_.linear_velocity();
   // Predict distance travel vector
+  //根据有无角速度，t时间 速度v 预测 x,y坐标
   if (std::fabs(vehicle_state_.angular_velocity()) < 0.0001) {
     vec_distance[0] = 0.0;
     vec_distance[1] = v * t;
@@ -250,7 +254,7 @@ math::Vec2d VehicleStateProvider::EstimateFuturePosition(const double t) const {
                                          orientation.qy(), orientation.qz());
     Eigen::Vector3d pos_vec(vehicle_state_.x(), vehicle_state_.y(),
                             vehicle_state_.z());
-    const Eigen::Vector3d future_pos_3d =
+    const Eigen::Vector3d future_pos_3d =//预测x,y,z坐标由车辆坐标旋转到参考坐标+车辆坐标x,y
         quaternion.toRotationMatrix() * vec_distance + pos_vec;
     return math::Vec2d(future_pos_3d[0], future_pos_3d[1]);
   }
@@ -265,9 +269,9 @@ math::Vec2d VehicleStateProvider::ComputeCOMPosition(
     const double rear_to_com_distance) const {
   // set length as distance between rear wheel and center of mass.
   Eigen::Vector3d v;
-  if ((FLAGS_state_transform_to_com_reverse &&
+  if ((FLAGS_state_transform_to_com_reverse &&//如果允许倒车时的转换
        vehicle_state_.gear() == canbus::Chassis::GEAR_REVERSE) ||
-      (FLAGS_state_transform_to_com_drive &&
+      (FLAGS_state_transform_to_com_drive &&//如果允许前进时的转换
        vehicle_state_.gear() == canbus::Chassis::GEAR_DRIVE)) {
     v << 0.0, rear_to_com_distance, 0.0;
   } else {

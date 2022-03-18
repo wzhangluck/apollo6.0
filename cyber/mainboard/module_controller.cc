@@ -25,6 +25,8 @@
 namespace apollo {
 namespace cyber {
 namespace mainboard {
+  
+ //模块加载,卸载
 
 void ModuleController::Clear() {
   for (auto& component : component_list_) {

@@ -66,6 +66,7 @@ size_t DiscretizedTrajectory::QueryLowerBoundPoint(const double relative_time,
                                                    const double epsilon) const {
   ACHECK(!empty());
 
+  //查询时间超出规划轨迹最大时间
   if (relative_time >= back().relative_time()) {
     return size() - 1;
   }
@@ -73,8 +74,8 @@ size_t DiscretizedTrajectory::QueryLowerBoundPoint(const double relative_time,
                          const double relative_time) {
     return tp.relative_time() + epsilon < relative_time;
   };
-  auto it_lower = std::lower_bound(begin(), end(), relative_time, func);
-  return std::distance(begin(), it_lower);
+  auto it_lower = std::lower_bound(begin(), end(), relative_time, func);//返回在给定区间内第一个不比relative_time小（大于等于）的值
+  return std::distance(begin(), it_lower);//计算两个迭代器表示的范围内包含元素的个数
 }
 
 size_t DiscretizedTrajectory::QueryNearestPoint(
@@ -94,6 +95,7 @@ size_t DiscretizedTrajectory::QueryNearestPoint(
   return index_min;
 }
 
+//查找距离position最近的轨迹点
 size_t DiscretizedTrajectory::QueryNearestPointWithBuffer(
     const common::math::Vec2d& position, const double buffer) const {
   double dist_sqr_min = std::numeric_limits<double>::max();

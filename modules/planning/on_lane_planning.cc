@@ -221,10 +221,13 @@ void OnLanePlanning::RunOnce(const LocalView& local_view,
   // chassis
   ADEBUG << "Get chassis:" << local_view_.chassis->DebugString();
 
+  //根据localization_estimate和chassis更新vehicle_state
   Status status = injector_->vehicle_state()->Update(
       *local_view_.localization_estimate, *local_view_.chassis);
-
+  //读取vehicle_state
   VehicleState vehicle_state = injector_->vehicle_state()->vehicle_state();
+
+  //判断时间是否有异常，程序入口时间戳 - vehicle_state时间戳
   const double vehicle_state_timestamp = vehicle_state.timestamp();
   DCHECK_GE(start_timestamp, vehicle_state_timestamp)
       << "start_timestamp is behind vehicle_state_timestamp by "
@@ -247,17 +250,18 @@ void OnLanePlanning::RunOnce(const LocalView& local_view,
     return;
   }
 
+//如果程序入口时间和车辆状态时间误差在20ms以内，进行时间对齐补偿
   if (start_timestamp - vehicle_state_timestamp <
-      FLAGS_message_latency_threshold) {
+      FLAGS_message_latency_threshold) {//默认0.02s
     vehicle_state = AlignTimeStamp(vehicle_state, start_timestamp);
   }
-
+//通过判断消息头计数器判断路由请求是否有更新，规划器重新初始化
   if (util::IsDifferentRouting(last_routing_, *local_view_.routing)) {
     last_routing_ = *local_view_.routing;
     ADEBUG << "last_routing_:" << last_routing_.ShortDebugString();
     injector_->history()->Clear();
     injector_->planning_context()->mutable_planning_status()->Clear();
-    reference_line_provider_->UpdateRoutingResponse(*local_view_.routing);
+    reference_line_provider_->UpdateRoutingResponse(*local_view_.routing);//更新内部最新routing，置位标志
     planner_->Init(config_);
   }
 
@@ -284,14 +288,15 @@ void OnLanePlanning::RunOnce(const LocalView& local_view,
 
   // planning is triggered by prediction data, but we can still use an estimated
   // cycle time for stitching
+  //规划是被预测触发的？
   const double planning_cycle_time =
-      1.0 / static_cast<double>(FLAGS_planning_loop_rate);
+      1.0 / static_cast<double>(FLAGS_planning_loop_rate);//默认为10hz
 
   std::string replan_reason;
   std::vector<TrajectoryPoint> stitching_trajectory =
       TrajectoryStitcher::ComputeStitchingTrajectory(
           vehicle_state, start_timestamp, planning_cycle_time,
-          FLAGS_trajectory_stitching_preserved_length, true,
+          FLAGS_trajectory_stitching_preserved_length/*默认20个点*/, true,
           last_publishable_trajectory_.get(), &replan_reason);
 
   injector_->ego_info()->Update(stitching_trajectory.back(), vehicle_state);
@@ -1117,6 +1122,7 @@ void OnLanePlanning::AddPublishedSpeed(const ADCTrajectory& trajectory_pb,
   (*sliding_line_properties)["showLine"] = "true";
 }
 
+//根据当前时刻和车辆状态时间戳进行x、y坐标补偿，时间戳更新为当前时间
 VehicleState OnLanePlanning::AlignTimeStamp(const VehicleState& vehicle_state,
                                             const double curr_timestamp) const {
   // TODO(Jinyun): use the same method in trajectory stitching

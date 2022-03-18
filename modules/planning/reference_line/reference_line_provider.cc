@@ -122,7 +122,7 @@ bool ReferenceLineProvider::Start() {
     return false;
   }
 
-  if (FLAGS_enable_reference_line_provider_thread) {
+  if (FLAGS_enable_reference_line_provider_thread) {//默认true
     task_future_ = cyber::Async(&ReferenceLineProvider::GenerateThread, this);
   }
   return true;

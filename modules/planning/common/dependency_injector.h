@@ -51,7 +51,7 @@ class DependencyInjector {
   }
 
  private:
-  PlanningContext planning_context_;
+  PlanningContext planning_context_;//规划的内部运行状态
   FrameHistory frame_history_;
   History history_;
   EgoInfo ego_info_;

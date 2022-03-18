@@ -23,8 +23,8 @@ namespace apollo {
 namespace common {
 
 void VehicleModel::RearCenteredKinematicBicycleModel(
-    const VehicleModelConfig& vehicle_model_config,
-    const double predicted_time_horizon, const VehicleState& cur_vehicle_state,
+    const VehicleModelConfig& vehicle_model_config,//配置文件，包括dt和车辆模型类型
+    const double predicted_time_horizon/*预测时间*/, const VehicleState& cur_vehicle_state,
     VehicleState* predicted_vehicle_state) {
   // Kinematic bicycle model centered at rear axis center by Euler forward
   // discretization
@@ -50,7 +50,7 @@ void VehicleModel::RearCenteredKinematicBicycleModel(
   static constexpr double kepsilon = 1e-8;
   while (countdown_time > kepsilon && !finish_flag) {
     countdown_time -= dt;
-    if (countdown_time < kepsilon) {
+    if (countdown_time < kepsilon) {//countdown_time先减为负，再+dt
       dt = countdown_time + dt;
       finish_flag = true;
     }
@@ -84,7 +84,7 @@ VehicleState VehicleModel::Predict(const double predicted_time_horizon,
                                    const VehicleState& cur_vehicle_state) {
   VehicleModelConfig vehicle_model_config;
 
-  ACHECK(cyber::common::GetProtoFromFile(FLAGS_vehicle_model_config_filename,
+  ACHECK(cyber::common::GetProtoFromFile(FLAGS_vehicle_model_config_filename,//"/apollo/modules/common/vehicle_model/conf/vehicle_model_config.pb.txt",包括车辆模型类型和dt时间
                                          &vehicle_model_config))
       << "Failed to load vehicle model config file "
       << FLAGS_vehicle_model_config_filename;

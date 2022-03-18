@@ -59,6 +59,7 @@ bool PlanningComponent::Init() {
     }
   }
 
+//调用planning_base->init,
   planning_base_->Init(config_);
 
   routing_reader_ = node_->CreateReader<RoutingResponse>(
