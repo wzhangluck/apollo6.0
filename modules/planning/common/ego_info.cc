@@ -33,6 +33,7 @@ EgoInfo::EgoInfo() {
   ego_vehicle_config_ = common::VehicleConfigHelper::GetConfig();
 }
 
+//更新初始点、车辆状态、创建
 bool EgoInfo::Update(const common::TrajectoryPoint& start_point,
                      const common::VehicleState& vehicle_state) {
   set_start_point(start_point);
@@ -41,11 +42,12 @@ bool EgoInfo::Update(const common::TrajectoryPoint& start_point,
   return true;
 }
 
+//计算包围盒
 void EgoInfo::CalculateEgoBox(const common::VehicleState& vehicle_state) {
   const auto& param = ego_vehicle_config_.vehicle_param();
   ADEBUG << "param: " << param.DebugString();
 
-  Vec2d vec_to_center(
+  Vec2d vec_to_center(//中心位置
       (param.front_edge_to_center() - param.back_edge_to_center()) / 2.0,
       (param.left_edge_to_center() - param.right_edge_to_center()) / 2.0);
 
@@ -66,10 +68,11 @@ void EgoInfo::Clear() {
 // It doesn't make sense when:
 // 1. the heading is not necessaries align with the road
 // 2. the road is not necessaries straight
+//计算障碍物列表与车辆前方可行驶区域（笛卡尔坐标系下前方50m）是否有碰撞，输出最小区域front_clear_distance_
 void EgoInfo::CalculateFrontObstacleClearDistance(
     const std::vector<const Obstacle*>& obstacles) {
   Vec2d position(vehicle_state_.x(), vehicle_state_.y());
-
+//////////////车辆中心坐标计算/////////////////////
   const auto& param = ego_vehicle_config_.vehicle_param();
   Vec2d vec_to_center(
       (param.front_edge_to_center() - param.back_edge_to_center()) / 2.0,
@@ -78,8 +81,9 @@ void EgoInfo::CalculateFrontObstacleClearDistance(
   Vec2d center(position + vec_to_center.rotate(vehicle_state_.heading()));
 
   Vec2d unit_vec_heading = Vec2d::CreateUnitVec2d(vehicle_state_.heading());
-
+/////////////////////////////////////////////////////
   // Due to the error of ego heading, only short range distance is meaningful
+//////////////车辆前方50m区域形成box/////////////////////  
   static constexpr double kDistanceThreshold = 50.0;
   static constexpr double buffer = 0.1;  // in meters
   const double impact_region_length =
@@ -88,6 +92,8 @@ void EgoInfo::CalculateFrontObstacleClearDistance(
                          vehicle_state_.heading(), impact_region_length,
                          param.width() + buffer);
 
+
+//////////////车辆前方50m区域形成box///////////////////// 
   for (const auto& obstacle : obstacles) {
     if (obstacle->IsVirtual() ||
         !ego_front_region.HasOverlap(obstacle->PerceptionBoundingBox())) {
@@ -99,7 +105,7 @@ void EgoInfo::CalculateFrontObstacleClearDistance(
                   ego_box_.diagonal() / 2.0;
 
     if (front_clear_distance_ < 0.0 || dist < front_clear_distance_) {
-      front_clear_distance_ = dist;
+      front_clear_distance_ = dist;//front_clear_distance_默认300m
     }
   }
 }

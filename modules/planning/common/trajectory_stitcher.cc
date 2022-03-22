@@ -220,7 +220,7 @@ std::vector<TrajectoryPoint> TrajectoryStitcher::ComputeStitchingTrajectory(
 //根据 （当前时刻的绝对时间-上一时刻轨迹的初始时间+planning_cycle_time） 得到forward_rel_time
   double forward_rel_time = veh_rel_time + planning_cycle_time;
 
-  size_t forward_time_index =
+  size_t forward_time_index =//基于车辆当前时间再加个planning_cycle_time的时刻，查找对应索引
       prev_trajectory->QueryLowerBoundPoint(forward_rel_time);
 
   ADEBUG << "Position matched index:\t" << position_matched_index;
@@ -228,12 +228,14 @@ std::vector<TrajectoryPoint> TrajectoryStitcher::ComputeStitchingTrajectory(
 
   auto matched_index = std::min(time_matched_index, position_matched_index);//时间匹配，位置匹配索引取最小的
 
+//选取（车辆当前匹配索引-20，车辆当前+planning_cycle_time）部分轨迹点
   std::vector<TrajectoryPoint> stitching_trajectory(
       prev_trajectory->begin() +
-          std::max(0, static_cast<int>(matched_index - preserved_points_num)),
+          std::max(0, static_cast<int>(matched_index - preserved_points_num)),//以匹配点索引往回取preserved_points_num个点（默认20），不会超出上次轨迹的begind点
       prev_trajectory->begin() + forward_time_index + 1);
   ADEBUG << "stitching_trajectory size: " << stitching_trajectory.size();
 
+//选取的轨迹部分最后一个点的s重置为零
   const double zero_s = stitching_trajectory.back().path_point().s();
   for (auto& tp : stitching_trajectory) {
     if (!tp.has_path_point()) {

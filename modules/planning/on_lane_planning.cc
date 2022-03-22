@@ -152,10 +152,11 @@ Status OnLanePlanning::InitFrame(const uint32_t sequence_num,
   auto forward_limit =
       hdmap::PncMap::LookForwardDistance(vehicle_state.linear_velocity());
 
+//遍历所有参考线，根据后向、前向留存距离截取路径段
   for (auto& ref_line : reference_lines) {
     if (!ref_line.Segment(Vec2d(vehicle_state.x(), vehicle_state.y()),
                           FLAGS_look_backward_distance, forward_limit)) {
-      const std::string msg = "Fail to shrink reference line.";
+      const std::string msg = "Fail to shrink收缩 reference line.";
       AERROR << msg;
       return Status(ErrorCode::PLANNING_ERROR, msg);
     }
@@ -293,6 +294,7 @@ void OnLanePlanning::RunOnce(const LocalView& local_view,
       1.0 / static_cast<double>(FLAGS_planning_loop_rate);//默认为10hz
 
   std::string replan_reason;
+  //根据上一周期规划结果->选取拼接轨迹段
   std::vector<TrajectoryPoint> stitching_trajectory =
       TrajectoryStitcher::ComputeStitchingTrajectory(
           vehicle_state, start_timestamp, planning_cycle_time,
@@ -311,7 +313,7 @@ void OnLanePlanning::RunOnce(const LocalView& local_view,
   if (FLAGS_enable_record_debug) {
     frame_->RecordInputDebug(ptr_trajectory_pb->mutable_debug());
   }
-  ptr_trajectory_pb->mutable_latency_stats()->set_init_frame_time_ms(
+  ptr_trajectory_pb->mutable_latency_stats()->set_init_frame_time_ms(//规划从进入到当前处理消耗的时间
       Clock::NowInSeconds() - start_timestamp);
 
   if (!status.ok()) {

@@ -238,7 +238,7 @@ bool ReferenceLineProvider::GetReferenceLines(
   }
 
   if (FLAGS_enable_reference_line_provider_thread) {
-    std::lock_guard<std::mutex> lock(reference_lines_mutex_);
+    std::lock_guard<std::mutex> lock(reference_lines_mutex_);//UpdateReferenceLine中对reference_lines_进行更新
     if (!reference_lines_.empty()) {
       reference_lines->assign(reference_lines_.begin(), reference_lines_.end());
       segments->assign(route_segments_.begin(), route_segments_.end());
@@ -551,7 +551,7 @@ bool ReferenceLineProvider::CreateReferenceLine(
     std::list<hdmap::RouteSegments> *segments) {
   CHECK_NOTNULL(reference_lines);
   CHECK_NOTNULL(segments);
-
+///////////////////////更新车辆状态、routing信息//////////
   common::VehicleState vehicle_state;
   {
     std::lock_guard<std::mutex> lock(vehicle_state_mutex_);
@@ -567,15 +567,15 @@ bool ReferenceLineProvider::CreateReferenceLine(
   {
     // Update routing in pnc_map
     std::lock_guard<std::mutex> lock(pnc_map_mutex_);
-    if (pnc_map_->IsNewRouting(routing)) {
+    if (pnc_map_->IsNewRouting(routing)) {//通过判断当前和新的routing是否一致
       is_new_routing = true;
-      if (!pnc_map_->UpdateRoutingResponse(routing)) {
+      if (!pnc_map_->UpdateRoutingResponse(routing)) {//根据新的routing请求，触发更新
         AERROR << "Failed to update routing in pnc map";
         return false;
       }
     }
   }
-
+///////////////////////////////////////////////////////////////
   if (!CreateRouteSegments(vehicle_state, segments)) {
     AERROR << "Failed to create reference line from routing";
     return false;

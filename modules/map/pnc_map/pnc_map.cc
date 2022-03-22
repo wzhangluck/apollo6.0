@@ -51,7 +51,19 @@ using apollo::common::PointENU;
 using apollo::common::VehicleState;
 using apollo::common::util::PointFactory;
 using apollo::routing::RoutingResponse;
+/*
 
+https://blog.csdn.net/lzw0107/article/details/107814610
+
+
+主要的功能有三个：
+
+更新路由信息。这部分接受Routing模块的路径查询响应，将其响应信息处理存储到地图类中。
+
+短期路径段查询。根据Routing规划路径以及当前车辆的位置，计算当前车辆可行驶的车道区域。
+
+路径段生成最终路径。针对2中每个可行驶的车道路由段，生成一条路径Path，可以后续生成参考线Reference Line。
+*/
 namespace {
 
 // Maximum lateral error used in trajectory approximation.
@@ -162,6 +174,7 @@ void PncMap::UpdateRoutingRange(int adc_index) {
   }
 }
 
+//这里的无人车状态不是无人车自身坐标，速度等信息，而是在上述更新路由信息过程中得到的route_indices_中，无人车在哪个LaneSegment中，距离无人车最近的下一个查询点waypoint的信息。
 bool PncMap::UpdateVehicleState(const VehicleState &vehicle_state) {
   if (!ValidateRouting(routing_)) {
     AERROR << "The routing is invalid when updating vehicle state.";
@@ -485,6 +498,11 @@ std::vector<int> PncMap::GetNeighborPassages(const routing::RoadSegment &road,
 }
 
 //pnc map最重要的功能
+/*
+根据当前主车的位置，去查询无人驾驶汽车可以行使的车道段(Passage && LaneSegment)
+在这个查询阶段，必须要保证已经存在RoutingResponse，所以在PncMap::GetRouteSegments函数运行时，
+必须保证在之前已经更新过路由信息PncMap::UpdateRoutingResponse
+*/
 bool PncMap::GetRouteSegments(const VehicleState &vehicle_state,
                               std::list<RouteSegments> *const route_segments) {
   double look_forward_distance =//180m或者250m（根据速度高低）
@@ -494,10 +512,11 @@ bool PncMap::GetRouteSegments(const VehicleState &vehicle_state,
                           look_forward_distance, route_segments);
 }
 //pnc map最重要的功能
+//每条LaneSequence最多持有20个LanePoint，每两个LanePoint之间的距离为2m
 bool PncMap::GetRouteSegments(const VehicleState &vehicle_state,
                               const double backward_length,
                               const double forward_length,
-                              std::list<RouteSegments> *const route_segments) {
+                              std::list<RouteSegments> *const route_segments/*每个元素都是代表当前车辆的一种运动方案 */) {
   //根据路由查询响应以及车辆状态可以得到当前车辆在规划路径中的位置adc_waypoint_，以及下一个必经查询点的索引next_routing_waypoint_index_
   if (!UpdateVehicleState(vehicle_state)) {
     AERROR << "Failed to update vehicle state in pnc_map.";
