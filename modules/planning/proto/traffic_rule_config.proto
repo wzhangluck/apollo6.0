@@ -2,6 +2,7 @@ syntax = "proto2";
 
 package apollo.planning;
 
+
 message BacksideVehicleConfig {
   // a vehicle is considered within current lane if it is behind the ADC and its
   // lateral difference is less than this number.
@@ -76,7 +77,17 @@ message YieldSignConfig {
   optional double stop_distance = 2 [default = 1.0];         // meter
   optional double start_watch_distance = 3 [default = 2.0];  // meter
 }
-
+/*
+BACKSIDE_VEHICLE（后向来车）
+CROSSWALK（人行横道）
+DESTINATION（目的地）
+KEEP_CLEAR（禁停区）
+REFERENCE_LINE_END（参考线结束）
+REROUTING（重新路由）
+STOP_SIGN（停车）
+TRAFFIC_LIGHT（交通灯）
+YIELD_SIGN（让行)
+*/
 message TrafficRuleConfig {
   enum RuleId {
     BACKSIDE_VEHICLE = 1;

@@ -114,7 +114,7 @@ bool ValetParkingScenario::IsTransferable(const Frame& frame,
     ADEBUG << "No parking space id from routing";
     return false;
   }
-
+  //从routing中得到target_parking_spot_id
   if (target_parking_spot_id.empty()) {
     return false;
   }

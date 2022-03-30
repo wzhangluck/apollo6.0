@@ -59,6 +59,7 @@ void StopSign::MakeDecisions(Frame* const frame,
   const std::vector<PathOverlap>& stop_sign_overlaps =
       reference_line_info->reference_line().map_path().stop_sign_overlaps();
   for (const auto& stop_sign_overlap : stop_sign_overlaps) {
+    //首先根据车辆当前位置  和ID  判断是否已经驶过正在遍历的停止牌，如果是，则不再处理，否则则走下面的逻辑生成虚拟停止墙
     if (stop_sign_overlap.end_s <= adc_back_edge_s) {
       continue;
     }

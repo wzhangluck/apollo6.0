@@ -51,7 +51,7 @@ bool IsDifferentRouting(const RoutingResponse& first,
   }
   return true;
 }
-
+//根据车头位置和停止线之间的距离计算停车减速度，v*v/2a
 double GetADCStopDeceleration(
     apollo::common::VehicleStateProvider* vehicle_state,
     const double adc_front_edge_s, const double stop_line_s) {
@@ -59,8 +59,8 @@ double GetADCStopDeceleration(
   const double max_adc_stop_speed = common::VehicleConfigHelper::Instance()
                                         ->GetConfig()
                                         .vehicle_param()
-                                        .max_abs_speed_when_stopped();
-  if (adc_speed < max_adc_stop_speed) {
+                                        .max_abs_speed_when_stopped();//默认0。2
+  if (adc_speed < max_adc_stop_speed) {//已经停下了
     return 0.0;
   }
 

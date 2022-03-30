@@ -49,6 +49,7 @@ Status Destination::ApplyRule(Frame* frame,
 
 /**
  * @brief: build stop decision
+ * 若存在有效的靠边停车点,则相关处理与人行横道中对遍历后需要停车的人行横道的处理一致,即创建虚拟障碍物,并封装成新的PathObstacle加入该ReferenceLineInfo的pathdecision中
  */
 int Destination::MakeDecisions(Frame* frame,
                                ReferenceLineInfo* const reference_line_info) {

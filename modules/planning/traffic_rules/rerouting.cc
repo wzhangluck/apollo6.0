@@ -40,29 +40,33 @@ Rerouting::Rerouting(const TrafficRuleConfig& config,
 bool Rerouting::ChangeLaneFailRerouting() {
   static constexpr double kRerouteThresholdToEnd = 20.0;
   for (const auto& ref_line_info : frame_->reference_line_info()) {
-    if (ref_line_info.ReachedDestination() ||
-        ref_line_info.SDistanceToDestination() < kRerouteThresholdToEnd) {
+    if (ref_line_info.ReachedDestination() ||//车辆如果到达终点，则不需要重新申请路由
+        ref_line_info.SDistanceToDestination() < kRerouteThresholdToEnd) {//距离终点＜20m
       return true;
     }
   }
   const auto& segments = reference_line_info_->Lanes();
   // 1. If current reference line is drive forward, no rerouting.
+  //如果当前是直行道，则不需要重新申请路由
   if (segments.NextAction() == routing::FORWARD) {
     // if not current lane, do not check for rerouting
     return true;
   }
 
   // 2. If vehicle is not on current reference line yet, no rerouting
+  //如果车辆不在当前路由段上，则不需要重新申请路由
   if (!segments.IsOnSegment()) {
     return true;
   }
 
   // 3. If current reference line can connect to next passage, no rerouting
+  //如果车辆即将退出当前passage，则不需要重新申请路由
   if (segments.CanExit()) {
     return true;
   }
 
   // 4. If the end of current passage region not appeared, no rerouting
+  //若当前路由段的终点不在当前参考线所在的车道上，则不需要重新申请路由
   const auto& route_end_waypoint = segments.RouteEndWaypoint();
   if (!route_end_waypoint.lane) {
     return true;
@@ -78,12 +82,13 @@ bool Rerouting::ChangeLaneFailRerouting() {
     return true;
   }
   // 5. If the end of current passage region is further than kPrepareRoutingTime
-  // * speed, no rerouting
+  // * speed, no rerouting、
+  //如果车辆在变更路由之前不能到达当前passage的终点，则不需要重新申请路由
   double adc_s = reference_line_info_->AdcSlBoundary().end_s();
   const auto vehicle_state = injector_->vehicle_state();
   double speed = vehicle_state->linear_velocity();
   const double prepare_rerouting_time =
-      config_.rerouting().prepare_rerouting_time();
+      config_.rerouting().prepare_rerouting_time();//默认2s
   const double prepare_distance = speed * prepare_rerouting_time;
   if (sl_point.s() > adc_s + prepare_distance) {
     ADEBUG << "No need rerouting now because still can drive for time: "
@@ -91,6 +96,7 @@ bool Rerouting::ChangeLaneFailRerouting() {
     return true;
   }
   // 6. Check if we have done rerouting before
+  //如果车辆在短时间内已经重新申请过路由，则不需要再重新申请路由
   auto* rerouting = injector_->planning_context()
                         ->mutable_planning_status()
                         ->mutable_rerouting();
@@ -105,6 +111,7 @@ bool Rerouting::ChangeLaneFailRerouting() {
     ADEBUG << "Skip rerouting and wait for previous rerouting result";
     return true;
   }
+  //如果车辆当前的状态不符合上述7种情况，则重新申请路由，重新申请路由由函数
   if (!frame_->Rerouting(injector_->planning_context())) {
     AERROR << "Failed to send rerouting request";
     return false;
@@ -115,6 +122,7 @@ bool Rerouting::ChangeLaneFailRerouting() {
   return true;
 }
 
+//根据车辆当前的位置等信息判断是否需要重新请求路由
 Status Rerouting::ApplyRule(Frame* const frame,
                             ReferenceLineInfo* const reference_line_info) {
   frame_ = frame;

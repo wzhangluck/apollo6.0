@@ -724,27 +724,27 @@ void ReferenceLineInfo::ExportVehicleSignal(
   *vehicle_signal = vehicle_signal_;
   SetTurnSignalBasedOnLaneTurnType(vehicle_signal);
 }
-
+//判断是否到达终点，（距离终点距离小于<0.05）
 bool ReferenceLineInfo::ReachedDestination() const {
   static constexpr double kDestinationDeltaS = 0.05;
   const double distance_destination = SDistanceToDestination();
   return distance_destination <= kDestinationDeltaS;
 }
-
+//计算停车点-车头的距离
 double ReferenceLineInfo::SDistanceToDestination() const {
   double res = std::numeric_limits<double>::max();
   const auto* dest_ptr = path_decision_.Find(FLAGS_destination_obstacle_id);
-  if (!dest_ptr) {
+  if (!dest_ptr) {//没有终点，无穷大
     return res;
   }
-  if (!dest_ptr->LongitudinalDecision().has_stop()) {
+  if (!dest_ptr->LongitudinalDecision().has_stop()) {//没有停车点，无穷大
     return res;
   }
-  if (!reference_line_.IsOnLane(dest_ptr->PerceptionBoundingBox().center())) {
+  if (!reference_line_.IsOnLane(dest_ptr->PerceptionBoundingBox().center())) {//终点没有在车道上，无穷大
     return res;
   }
-  const double stop_s = dest_ptr->PerceptionSLBoundary().start_s() +
-                        dest_ptr->LongitudinalDecision().stop().distance_s();
+  const double stop_s = dest_ptr->PerceptionSLBoundary().start_s() +//终点s+distance_s
+                        dest_ptr->LongitudinalDecision().stop().distance_s();//默认-0.5m
   return stop_s - adc_sl_boundary_.end_s();
 }
 
@@ -952,6 +952,7 @@ void ReferenceLineInfo::MakeEStopDecision(
   }
 }
 
+//根据s查找Lanes里面的车道转向属性
 hdmap::Lane::LaneTurn ReferenceLineInfo::GetPathTurnType(const double s) const {
   const double forward_buffer = 20.0;
   double route_s = 0.0;

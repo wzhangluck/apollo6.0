@@ -106,8 +106,9 @@ void Crosswalk::MakeDecisions(Frame* const frame,
     std::string crosswalk_id = crosswalk_ptr->id().id();
 
     // skip crosswalk if master vehicle body already passes the stop line
+    //车头驶过人行横道的距离超过阈值min_pass_s_distance时，清除rosswalk_status中的ID及停止时间信息,即不需要停车
     if (adc_front_edge_s - crosswalk_overlap->end_s >
-        config_.crosswalk().min_pass_s_distance()) {
+        config_.crosswalk().min_pass_s_distance()) {//默认1m
       if (mutable_crosswalk_status->has_crosswalk_id() &&
           mutable_crosswalk_status->crosswalk_id() == crosswalk_id) {
         mutable_crosswalk_status->clear_crosswalk_id();
@@ -122,6 +123,7 @@ void Crosswalk::MakeDecisions(Frame* const frame,
     }
 
     // check if crosswalk already finished
+    //如果已经通过行人横道,则忽略,如果crosswalk_id已经在finished_crosswalks的里面了
     if (finished_crosswalks.end() != std::find(finished_crosswalks.begin(),
                                                finished_crosswalks.end(),
                                                crosswalk_id)) {
@@ -132,10 +134,11 @@ void Crosswalk::MakeDecisions(Frame* const frame,
 
     std::vector<std::string> pedestrians;
     for (const auto* obstacle : path_decision->obstacles().Items()) {
+      //根据车头位置和停止线之间的距离计算停车减速度;
       const double stop_deceleration = util::GetADCStopDeceleration(
           injector_->vehicle_state(), adc_front_edge_s,
           crosswalk_overlap->start_s);
-
+      //判断正在遍历的障碍物是否需要停车
       bool stop = CheckStopForObstacle(reference_line_info, crosswalk_ptr,
                                        *obstacle, stop_deceleration);
 
@@ -149,6 +152,7 @@ void Crosswalk::MakeDecisions(Frame* const frame,
       const bool is_on_lane =
           reference_line.IsOnLane(obstacle->PerceptionSLBoundary());
       const double kStartWatchTimerDistance = 40.0;
+      //如果需要停车,同时障碍物不在当前所查询的参考线所对应的车道上,且车辆到停止线的距离小于40米
       if (stop && !is_on_lane &&
           crosswalk_overlap->start_s - adc_front_edge_s <=
               kStartWatchTimerDistance) {
@@ -157,8 +161,9 @@ void Crosswalk::MakeDecisions(Frame* const frame,
         const double kMaxStopSpeed = 0.3;
         auto obstacle_speed = std::hypot(perception_obstacle.velocity().x(),
                                          perception_obstacle.velocity().y());
-        if (obstacle_speed <= kMaxStopSpeed) {
+        if (obstacle_speed <= kMaxStopSpeed) {//当障碍物移动的速度小于等于0.3时
           if (crosswalk_stop_timer[crosswalk_id].count(obstacle_id) < 1) {
+            //当前障碍物不在crosswalk_stop_timer[crosswalk_id]中,则将其插入其中
             // add timestamp
             ADEBUG << "add timestamp: obstacle_id[" << obstacle_id
                    << "] timestamp[" << Clock::NowInSeconds()
@@ -166,6 +171,7 @@ void Crosswalk::MakeDecisions(Frame* const frame,
             crosswalk_stop_timer[crosswalk_id].insert(
                 {obstacle_id, Clock::NowInSeconds()});
           } else {
+            //如果障碍物已经在了并且stop_time >= config_.crosswalk().stop_timeout(),则不再需要停车;
             double stop_time = Clock::NowInSeconds() -
                                crosswalk_stop_timer[crosswalk_id][obstacle_id];
             ADEBUG << "stop_time: obstacle_id[" << obstacle_id << "] stop_time["
@@ -177,7 +183,7 @@ void Crosswalk::MakeDecisions(Frame* const frame,
         }
       }
 
-      if (stop) {
+      if (stop) {//最后的结果是需要停车,则pedestrians.push_back(obstacle_id),供后续处理使用;
         pedestrians.push_back(obstacle_id);
         ADEBUG << "wait for: obstacle_id[" << obstacle_id << "] type["
                << obstacle_type_name << "] crosswalk_id[" << crosswalk_id
@@ -211,6 +217,7 @@ void Crosswalk::MakeDecisions(Frame* const frame,
                             TrafficRuleConfig::RuleId_Name(config_.rule_id()),
                             frame, reference_line_info);
 
+    //查找将要遇到的第一个人行横道
     if (crosswalk_to_stop.first->start_s < min_s) {
       firsts_crosswalk_to_stop =
           const_cast<PathOverlap*>(crosswalk_to_stop.first);
@@ -245,6 +252,8 @@ void Crosswalk::MakeDecisions(Frame* const frame,
   ADEBUG << "crosswalk_status: " << mutable_crosswalk_status->DebugString();
 }
 
+
+//找到所有人行横道
 bool Crosswalk::FindCrosswalks(ReferenceLineInfo* const reference_line_info) {
   CHECK_NOTNULL(reference_line_info);
 
@@ -272,6 +281,7 @@ bool Crosswalk::CheckStopForObstacle(
   double adc_end_edge_s = reference_line_info->AdcSlBoundary().start_s();
 
   // check type
+  //如果障碍物类型不是行人,自行车,未知移动物体或者位置类型
   if (obstacle_type != PerceptionObstacle::PEDESTRIAN &&
       obstacle_type != PerceptionObstacle::BICYCLE &&
       obstacle_type != PerceptionObstacle::UNKNOWN_MOVABLE &&
@@ -287,10 +297,10 @@ bool Crosswalk::CheckStopForObstacle(
               perception_obstacle.position().y());
   const Polygon2d crosswalk_exp_poly =
       crosswalk_ptr->polygon().ExpandByDistance(
-          config_.crosswalk().expand_s_distance());
-  bool in_expanded_crosswalk = crosswalk_exp_poly.IsPointIn(point);
+          config_.crosswalk().expand_s_distance());//默认2m
+  bool in_expanded_crosswalk = crosswalk_exp_poly.IsPointIn(point);//障碍物xy坐标是否在人行横道扩后的框内
 
-  if (!in_expanded_crosswalk) {
+  if (!in_expanded_crosswalk) {//不在则忽略
     ADEBUG << "skip: obstacle_id[" << obstacle_id << "] type["
            << obstacle_type_name << "] crosswalk_id[" << crosswalk_id
            << "]: not in crosswalk expanded area";
@@ -302,7 +312,7 @@ bool Crosswalk::CheckStopForObstacle(
   common::SLPoint obstacle_sl_point;
   reference_line.XYToSL(perception_obstacle.position(), &obstacle_sl_point);
   auto& obstacle_sl_boundary = obstacle.PerceptionSLBoundary();
-  const double obstacle_l_distance =
+  const double obstacle_l_distance =//l的绝对值
       std::min(std::fabs(obstacle_sl_boundary.start_l()),
                std::fabs(obstacle_sl_boundary.end_l()));
 
@@ -310,7 +320,7 @@ bool Crosswalk::CheckStopForObstacle(
       reference_line.IsOnLane(obstacle.PerceptionSLBoundary());
   const bool is_on_road =
       reference_line.IsOnRoad(obstacle.PerceptionSLBoundary());
-  const bool is_path_cross = !obstacle.reference_line_st_boundary().IsEmpty();
+  const bool is_path_cross = !obstacle.reference_line_st_boundary().IsEmpty();//如果障碍物的轨迹与参考线相交
 
   ADEBUG << "obstacle_id[" << obstacle_id << "] type[" << obstacle_type_name
          << "] crosswalk_id[" << crosswalk_id << "] obstacle_l["
@@ -320,19 +330,20 @@ bool Crosswalk::CheckStopForObstacle(
          << is_on_road << "] is_path_cross[" << is_path_cross << "]";
 
   bool stop = false;
-  if (obstacle_l_distance >= config_.crosswalk().stop_loose_l_distance()) {
+  if (obstacle_l_distance >= config_.crosswalk().stop_loose_l_distance()) {//默认8m
     // (1) when obstacle_l_distance is big enough(>= loose_l_distance),
     //     STOP only if paths crosses
-    if (is_path_cross) {
+    if (is_path_cross) {//如果障碍物的轨迹与参考线相交
       stop = true;
       ADEBUG << "need_stop(>=l2): obstacle_id[" << obstacle_id << "] type["
              << obstacle_type_name << "] crosswalk_id[" << crosswalk_id << "]";
     }
   } else if (obstacle_l_distance <=
-             config_.crosswalk().stop_strict_l_distance()) {
+             config_.crosswalk().stop_strict_l_distance()) {//默认6m
     if (is_on_road) {
       // (2) when l_distance <= strict_l_distance + on_road
       //     always STOP
+      //当障碍物的横向距离小于比较严苛的横向停车距离,如果是前道路范围内的前向障碍物,则需要停车
       if (obstacle_sl_point.s() > adc_end_edge_s) {
         stop = true;
         ADEBUG << "need_stop(<=l1): obstacle_id[" << obstacle_id << "] type["
@@ -345,11 +356,13 @@ bool Crosswalk::CheckStopForObstacle(
       //     + NOT on_road(i.e. on crosswalk/median etc)
       //     STOP if paths cross
       if (is_path_cross) {
+        //当障碍物的横向距离小于比较严苛的横向停车距离,如果是不在当前道路范围内但轨迹与参考线相交的障碍物,则需要停车
         stop = true;
         ADEBUG << "need_stop(<=l1): obstacle_id[" << obstacle_id << "] type["
                << obstacle_type_name << "] crosswalk_id[" << crosswalk_id
                << "] PATH_CRSOSS";
       } else {
+        //当障碍物的横向距离小于比较严苛的横向停车距离,如果是不在当前道路范围内但正在本车靠近的障碍物,则需要停车
         // (4) when l_distance <= strict_l_distance
         //     + NOT on_road(i.e. on crosswalk/median etc)
         //     STOP if he pedestrian is moving toward the ego vehicle
@@ -376,6 +389,7 @@ bool Crosswalk::CheckStopForObstacle(
     //     use history decision of this crosswalk to smooth unsteadiness
 
     // TODO(all): replace this temp implementation
+    //当障碍物的横向距离大于比较严苛的横向停车距离同时小于一定的阈值(宽松的停车距离)时,如果障碍物与参考线轨迹相交,则停车;
     if (is_path_cross) {
       stop = true;
     }
@@ -387,6 +401,7 @@ bool Crosswalk::CheckStopForObstacle(
 
   // check stop_deceleration
   if (stop) {
+    //如果(iii)处理的结果需要停车,并且停车减速度大于配置文件给出的最大减速度,同时障碍物的横向距离大于比较严苛的横向停车距离,则不再需要停车
     if (stop_deceleration >= config_.crosswalk().max_stop_deceleration()) {
       if (obstacle_l_distance > config_.crosswalk().stop_strict_l_distance()) {
         // SKIP when stop_deceleration is too big but safe to ignore

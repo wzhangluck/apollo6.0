@@ -77,6 +77,7 @@ void TrafficLight::MakeDecisions(Frame* const frame,
   const std::vector<PathOverlap>& traffic_light_overlaps =
       reference_line_info->reference_line().map_path().signal_overlaps();
   for (const auto& traffic_light_overlap : traffic_light_overlaps) {
+    //如果根据车辆当前的位置判断已经驶过红绿灯，则当前遍历的红绿灯则不作任何处理
     if (traffic_light_overlap.end_s <= adc_back_edge_s) {
       continue;
     }
@@ -85,6 +86,7 @@ void TrafficLight::MakeDecisions(Frame* const frame,
     bool traffic_light_done = false;
     for (const auto& done_traffic_light_overlap_id :
          traffic_light_status.done_traffic_light_overlap_id()) {
+      //遍历已经驶过的交通灯的ID，如果当前交通灯已经完成，则不做处理
       if (traffic_light_overlap.object_id == done_traffic_light_overlap_id) {
         traffic_light_done = true;
         break;
@@ -110,6 +112,7 @@ void TrafficLight::MakeDecisions(Frame* const frame,
     ADEBUG << "traffic_light[" << traffic_light_overlap.object_id
            << "] start_s[" << traffic_light_overlap.start_s << "] s_distance["
            << s_distance << "] actual_distance[" << distance << "]";
+    //根据自车与交通灯的欧氏距离以及s差值，判断交通灯是否偏离，如果是，则不做处理
     if (s_distance >= 0 &&
         fabs(s_distance - distance) > kSDiscrepanceTolerance) {
       ADEBUG << "SKIP traffic_light[" << traffic_light_overlap.object_id
@@ -117,6 +120,7 @@ void TrafficLight::MakeDecisions(Frame* const frame,
       continue;
     }
 
+//据交通灯的颜色判断处理，如果是绿色，则不做处理，如果是红/黄/未知的颜色色，并且计算出的停车减速度大于最大减速度，则说明距离较远，这次先不做处理
     auto signal_color =
         frame->GetSignal(traffic_light_overlap.object_id).color();
     const double stop_deceleration = util::GetADCStopDeceleration(
@@ -152,6 +156,11 @@ void TrafficLight::MakeDecisions(Frame* const frame,
     std::string virtual_obstacle_id =
         TRAFFIC_LIGHT_VO_ID_PREFIX + traffic_light_overlap.object_id;
     const std::vector<std::string> wait_for_obstacles;
+
+    
+    //整体看，只对红/黄/未知灯，且加速在合理范围内的交通灯做停车处理，处理策略就是生成虚拟停车墙
+
+
     util::BuildStopDecision(virtual_obstacle_id, traffic_light_overlap.start_s,
                             config_.traffic_light().stop_distance(),
                             StopReasonCode::STOP_REASON_SIGNAL,

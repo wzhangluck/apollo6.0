@@ -24,7 +24,7 @@ namespace apollo {
 namespace planning {
 
 using apollo::common::Status;
-
+//后向来车的处理决策
 BacksideVehicle::BacksideVehicle(const TrafficRuleConfig& config)
     : TrafficRule(config) {}
 
@@ -35,12 +35,13 @@ void BacksideVehicle::MakeLaneKeepingObstacleDecision(
   const double adc_length_s =
       adc_sl_boundary.end_s() - adc_sl_boundary.start_s();
   for (const auto* obstacle : path_decision->obstacles().Items()) {
+    //对于前方障碍物及警戒级别的障碍物不作处理
     if (obstacle->PerceptionSLBoundary().end_s() >= adc_sl_boundary.end_s() ||
         obstacle->IsCautionLevelObstacle()) {
       // don't ignore such vehicles.
       continue;
     }
-
+    //如果参考线上没有障碍物运动轨迹,则忽略
     if (obstacle->reference_line_st_boundary().IsEmpty()) {
       path_decision->AddLongitudinalDecision("backside_vehicle/no-st-region",
                                              obstacle->Id(), ignore);
@@ -49,6 +50,7 @@ void BacksideVehicle::MakeLaneKeepingObstacleDecision(
       continue;
     }
     // Ignore the car comes from back of ADC
+    //如果障碍物轨迹距离无人车的最近距离小于一个车长,则忽略
     if (obstacle->reference_line_st_boundary().min_s() < -adc_length_s) {
       path_decision->AddLongitudinalDecision("backside_vehicle/st-min-s < adc",
                                              obstacle->Id(), ignore);
@@ -58,12 +60,13 @@ void BacksideVehicle::MakeLaneKeepingObstacleDecision(
     }
 
     const double lane_boundary =
-        config_.backside_vehicle().backside_lane_width();
+        config_.backside_vehicle().backside_lane_width();//默认4m
     if (obstacle->PerceptionSLBoundary().start_s() < adc_sl_boundary.end_s()) {
       if (obstacle->PerceptionSLBoundary().start_l() > lane_boundary ||
           obstacle->PerceptionSLBoundary().end_l() < -lane_boundary) {
         continue;
       }
+      //如果距离本车横向距离小于一定阈值的后向车辆,说明车辆不会超车.选择忽略
       path_decision->AddLongitudinalDecision("backside_vehicle/sl < adc.end_s",
                                              obstacle->Id(), ignore);
       path_decision->AddLateralDecision("backside_vehicle/sl < adc.end_s",

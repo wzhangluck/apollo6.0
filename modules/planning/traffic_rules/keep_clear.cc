@@ -34,7 +34,9 @@ namespace planning {
 
 using apollo::common::Status;
 using apollo::hdmap::PathOverlap;
-
+/*
+禁停区分为两类，第一类是传统的禁停区，第二类是交叉路口。对于禁停区的处理和对人行横道上障碍物构建虚拟墙很相似。具体做法是在参考线上构建一块禁停区，从纵向的start_s到end_s(这里的start_s和end_s是禁停区start_s和end_s在参考线上的投影点)。禁停区宽度在配置文件中设定(4米)。
+*/
 KeepClear::KeepClear(const TrafficRuleConfig& config,
                      const std::shared_ptr<DependencyInjector>& injector)
     : TrafficRule(config, injector) {}
@@ -64,6 +66,7 @@ Status KeepClear::ApplyRule(Frame* const frame,
   }
 
   // junction
+  //与传统禁停区相比,对交叉口进行处理时,需要根据交叉口的类型来计算交叉口开始的s值(pnc_junction_start_s),用来生成虚拟障碍物的标定框
   if (config_.keep_clear().enable_junction()) {
     hdmap::PathOverlap* crosswalk_overlap = nullptr;
     hdmap::PathOverlap* stop_sign_overlap = nullptr;
@@ -107,11 +110,12 @@ Status KeepClear::ApplyRule(Frame* const frame,
     if (pnc_junction_overlap != nullptr) {
       const double adc_front_edge_s =
           reference_line_info->AdcSlBoundary().end_s();
-      if (!IsCreeping(pnc_junction_overlap->start_s, adc_front_edge_s)) {
+      if (!IsCreeping(pnc_junction_overlap->start_s, adc_front_edge_s)) {//如果没有在creeping状态下
         // adjust pnc_junction start_s to align with
         // the start_s of other "stop type" overlaps
         double pnc_junction_start_s = pnc_junction_overlap->start_s;
         // traffic_light, stop_sign, and then crosswalk if neither
+        //如果pnc_junction的s和其他"stop type的s距离在align_with_traffic_sign_tolerance以内，用其他的s替代
         if (traffic_light_overlap != nullptr &&
             std::fabs(pnc_junction_start_s - traffic_light_overlap->start_s) <=
                 config_.keep_clear().align_with_traffic_sign_tolerance()) {
@@ -182,7 +186,7 @@ bool KeepClear::BuildKeepClearObstacle(
   CHECK_NOTNULL(frame);
   CHECK_NOTNULL(reference_line_info);
 
-  // check
+  // check检查自车是否已经驶入禁停区,如果是,则忽略
   const double adc_front_edge_s = reference_line_info->AdcSlBoundary().end_s();
   if (adc_front_edge_s - keep_clear_start_s >
       config_.keep_clear().min_pass_s_distance()) {
@@ -196,6 +200,7 @@ bool KeepClear::BuildKeepClearObstacle(
   ADEBUG << "keep clear obstacle: [" << keep_clear_start_s << ", "
          << keep_clear_end_s << "]";
   // create virtual static obstacle
+  //对于还未经过的禁停区,生成虚拟障碍物,并封装到path_obstacle中
   auto* obstacle =
       frame->CreateStaticObstacle(reference_line_info, virtual_obstacle_id,
                                   keep_clear_start_s, keep_clear_end_s);

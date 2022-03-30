@@ -111,6 +111,8 @@ bool TrafficDecider::Init(const TrafficRuleConfigs &config) {
   return true;
 }
 
+//根据生成的虚拟障碍物决定纵向停止距离
+//停止点obstacle->PerceptionSLBoundary().start_s()需要减去车头到质心距离作为stop_point
 void TrafficDecider::BuildPlanningTarget(
     ReferenceLineInfo *reference_line_info) {
   double min_s = std::numeric_limits<double>::infinity();
@@ -152,6 +154,7 @@ void TrafficDecider::BuildPlanningTarget(
   }
 }
 
+//根据配置文件去应用不同的traffic rule，对不同交通要素进行决策,结果都关联到一个或实或虚的Obstacle中，保留在reference_line_info这个数据里面
 Status TrafficDecider::Execute(
     Frame *frame, ReferenceLineInfo *reference_line_info,
     const std::shared_ptr<DependencyInjector> &injector) {

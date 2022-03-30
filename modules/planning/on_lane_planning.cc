@@ -345,9 +345,10 @@ void OnLanePlanning::RunOnce(const LocalView& local_view,
     return;
   }
 
+//交通规则决策
   for (auto& ref_line_info : *frame_->mutable_reference_line_info()) {
     TrafficDecider traffic_decider;
-    traffic_decider.Init(traffic_rule_configs_);
+    traffic_decider.Init(traffic_rule_configs_);//traffic_rule_config.pb.txt
     auto traffic_status =
         traffic_decider.Execute(frame_.get(), &ref_line_info, injector_);
     if (!traffic_status.ok() || !ref_line_info.IsDrivable()) {
@@ -503,7 +504,8 @@ Status OnLanePlanning::Plan(
     frame_->mutable_open_space_info()->sync_debug_instance();
   }
 
-  auto status = planner_->Plan(stitching_trajectory.back(), frame_.get(),
+//planner：Planner基类指针->PlannerWithReferenceLine->PublicRoadPlanner(LatticePlanner\RTKReplayPlanner\NaviPlanner)
+  auto status = planner_->Plan(stitching_trajectory.back(), frame_.get(),//使用拼接轨迹的最后一个点作为本次规划起点
                                ptr_trajectory_pb);
 
   ptr_debug->mutable_planning_data()->set_front_clear_distance(

@@ -96,6 +96,7 @@ bool Frame::Rerouting(PlanningContext *planning_context) {
     AERROR << "Invalid HD Map.";
     return false;
   }
+  //获取routing_request信息；
   auto request = local_view_.routing->routing_request();
   request.clear_header();
 
@@ -103,12 +104,14 @@ bool Frame::Rerouting(PlanningContext *planning_context) {
   double s = 0.0;
   double l = 0.0;
   hdmap::LaneInfoConstPtr lane;
+  //根据车辆当前的位置，获取距离车辆最近的车道
   if (hdmap_->GetNearestLaneWithHeading(point, 5.0, vehicle_state_.heading(),
                                         M_PI / 3.0, &lane, &s, &l) != 0) {
     AERROR << "Failed to find nearest lane from map at position: "
            << point.DebugString() << ", heading:" << vehicle_state_.heading();
     return false;
   }
+  //更新重新路由请求中的路点信息及状态
   request.clear_waypoint();
   auto *start_point = request.add_waypoint();
   start_point->set_id(lane->id().id());

@@ -37,12 +37,19 @@ YieldSign::YieldSign(const TrafficRuleConfig& config,
                      const std::shared_ptr<DependencyInjector>& injector)
     : TrafficRule(config, injector) {}
 
+//停车让行的处理逻辑与交通灯一致
+
 Status YieldSign::ApplyRule(Frame* const frame,
                             ReferenceLineInfo* const reference_line_info) {
   MakeDecisions(frame, reference_line_info);
   return Status::OK();
 }
 
+/*
+1. 从地图中获取停车让行的vector信息；
+
+2.对停车让行vector进行遍历，如果是没有处理过的则生成相关的虚拟停车墙
+*/
 void YieldSign::MakeDecisions(Frame* const frame,
                               ReferenceLineInfo* const reference_line_info) {
   CHECK_NOTNULL(frame);
