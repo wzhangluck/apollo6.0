@@ -113,6 +113,7 @@ void ReferenceLineProvider::UpdateVehicleState(
   vehicle_state_ = vehicle_state;
 }
 
+//被OnLanePlanning::Init调用
 bool ReferenceLineProvider::Start() {
   if (FLAGS_use_navigation_mode) {
     return true;

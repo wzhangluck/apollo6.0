@@ -362,7 +362,7 @@ class Path {
 
   // Sampled every fixed length.
   int num_sample_points_ = 0;
-  std::vector<double> lane_left_width_;
+  std::vector<double> lane_left_width_;//其中包括path_points_的l偏移量
   std::vector<double> lane_right_width_;
   std::vector<double> road_left_width_;
   std::vector<double> road_right_width_;

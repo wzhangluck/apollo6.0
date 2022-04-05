@@ -46,7 +46,7 @@ using std::placeholders::_1;
 namespace {
 
 const double kSampleDistance = 0.25;
-
+//遍历比较p1和p2中的各自的waypoints，如果两者车道id相同，且1的s＜2的s，则组成线段，作为形参返回
 bool FindLaneSegment(const MapPathPoint& p1, const MapPathPoint& p2,
                      LaneSegment* const lane_segment) {
   for (const auto& wp1 : p1.lane_waypoints()) {
@@ -104,12 +104,13 @@ LaneBoundaryType::Type RightBoundaryType(const LaneWaypoint& waypoint) {
   return LaneBoundaryType::UNKNOWN;
 }
 
+//根据waypoint包含的车道信息得到相邻车道，并计算waypoint的xy对应的s，与相邻车道组成LaneWaypoint返回
 LaneWaypoint LeftNeighborWaypoint(const LaneWaypoint& waypoint) {
   LaneWaypoint neighbor;
   if (!waypoint.lane) {
     return neighbor;
   }
-  auto point = waypoint.lane->GetSmoothPoint(waypoint.s);
+  auto point = waypoint.lane->GetSmoothPoint(waypoint.s);//根据s得到xy坐标
   auto map_ptr = HDMapUtil::BaseMapPtr();
   CHECK_NOTNULL(map_ptr);
   for (const auto& lane_id :
@@ -159,7 +160,7 @@ void LaneSegment::Join(std::vector<LaneSegment>* segments) {
   segments->resize(k);
   segments->shrink_to_fit();  // release memory
 }
-
+//根据waypoint包含的车道信息得到相邻车道，并计算waypoint的xy对应的s，与相邻车道组成LaneWaypoint返回
 LaneWaypoint RightNeighborWaypoint(const LaneWaypoint& waypoint) {
   LaneWaypoint neighbor;
   if (!waypoint.lane) {
@@ -195,12 +196,12 @@ std::string LaneSegment::DebugString() const {
   return absl::StrCat("id = ", lane->id().id(), "  start_s = ", start_s,
                       "  end_s = ", end_s);
 }
-
+//获取lane中处于start_s和end_s之间的points
 std::vector<MapPathPoint> MapPathPoint::GetPointsFromSegment(
     const LaneSegment& segment) {
   return GetPointsFromLane(segment.lane, segment.start_s, segment.end_s);
 }
-
+//获取lane中处于start_s和end_s之间的points
 std::vector<MapPathPoint> MapPathPoint::GetPointsFromLane(LaneInfoConstPtr lane,
                                                           const double start_s,
                                                           const double end_s) {
@@ -210,19 +211,19 @@ std::vector<MapPathPoint> MapPathPoint::GetPointsFromLane(LaneInfoConstPtr lane,
   }
   double accumulate_s = 0.0;
   for (size_t i = 0; i < lane->points().size(); ++i) {
-    if (accumulate_s >= start_s && accumulate_s <= end_s) {
+    if (accumulate_s >= start_s && accumulate_s <= end_s) {//把start_s和end_s之间的lane->points放入到points
       points.emplace_back(lane->points()[i], lane->headings()[i],
                           LaneWaypoint(lane, accumulate_s));
     }
     if (i < lane->segments().size()) {
       const auto& segment = lane->segments()[i];
       const double next_accumulate_s = accumulate_s + segment.length();
-      if (start_s > accumulate_s && start_s < next_accumulate_s) {
+      if (start_s > accumulate_s && start_s < next_accumulate_s) {//把start_s放入到points
         points.emplace_back(segment.start() + segment.unit_direction() *
                                                   (start_s - accumulate_s),
                             lane->headings()[i], LaneWaypoint(lane, start_s));
       }
-      if (end_s > accumulate_s && end_s < next_accumulate_s) {
+      if (end_s > accumulate_s && end_s < next_accumulate_s) {//把end_s放入到points
         points.emplace_back(
             segment.start() + segment.unit_direction() * (end_s - accumulate_s),
             lane->headings()[i], LaneWaypoint(lane, end_s));
@@ -236,6 +237,7 @@ std::vector<MapPathPoint> MapPathPoint::GetPointsFromLane(LaneInfoConstPtr lane,
   return points;
 }
 
+//移除points中重复的点
 void MapPathPoint::RemoveDuplicates(std::vector<MapPathPoint>* points) {
   static constexpr double kDuplicatedPointsEpsilon = 1e-7;
   static constexpr double limit =
@@ -244,10 +246,10 @@ void MapPathPoint::RemoveDuplicates(std::vector<MapPathPoint>* points) {
   int count = 0;
   for (size_t i = 0; i < points->size(); ++i) {
     if (count == 0 ||
-        (*points)[i].DistanceSquareTo((*points)[count - 1]) > limit) {
+        (*points)[i].DistanceSquareTo((*points)[count - 1]) > limit) {//如果两个点不相同，则正常赋值到count
       (*points)[count++] = (*points)[i];
     } else {
-      (*points)[count - 1].add_lane_waypoints((*points)[i].lane_waypoints());
+      (*points)[count - 1].add_lane_waypoints((*points)[i].lane_waypoints());//否则，把遍历到的i赋值到count-1
     }
   }
   points->resize(count);
@@ -356,7 +358,7 @@ void Path::Init() {
   InitWidth();
   InitOverlaps();
 }
-
+//初始化，对类成员变量赋值
 void Path::InitPoints() {
   num_points_ = static_cast<int>(path_points_.size());
   CHECK_GE(num_points_, 2);

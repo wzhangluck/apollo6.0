@@ -34,6 +34,7 @@ using apollo::common::PointENU;
 using apollo::common::math::AABoxKDTreeParams;
 using apollo::common::math::Vec2d;
 
+//
 Id CreateHDMapId(const std::string& string_id) {
   Id id;
   id.set_id(string_id);
@@ -47,21 +48,23 @@ constexpr int kBackwardDistance = 4;
 
 }  // namespace
 
+//加载高精地图格式包括base_map.bin|base_map.xml|base_map.txt
 int HDMapImpl::LoadMapFromFile(const std::string& map_filename) {
   Clear();
   // TODO(All) seems map_ can be changed to a local variable of this
   // function, but test will fail if I do so. if so.
-  if (absl::EndsWith(map_filename, ".xml")) {
+  if (absl::EndsWith(map_filename, ".xml")) {//xml的调用opendrive解析
     if (!adapter::OpendriveAdapter::LoadData(map_filename, &map_)) {
       return -1;
     }
-  } else if (!cyber::common::GetProtoFromFile(map_filename, &map_)) {
+  } else if (!cyber::common::GetProtoFromFile(map_filename, &map_)) {//bin和txt的解析  google::protobuf::Map
     return -1;
   }
 
   return LoadMapFromProto(map_);
 }
 
+//根据解析的地图文件放入各个table
 int HDMapImpl::LoadMapFromProto(const Map& map_proto) {
   if (&map_proto != &map_) {  // avoid an unnecessary copy
     Clear();
@@ -115,6 +118,8 @@ int HDMapImpl::LoadMapFromProto(const Map& map_proto) {
   for (const auto& rsu : map_.rsu()) {
     rsu_table_[rsu.id().id()].reset(new RSUInfo(rsu));
   }
+
+  //根据高精地图的road里面的lane_id，查找lane_table_的对应的id，并设置lane_table_里面的road_id
   for (const auto& road_ptr_pair : road_table_) {
     const auto& road_id = road_ptr_pair.second->id();
     for (const auto& road_section : road_ptr_pair.second->sections()) {
@@ -130,13 +135,13 @@ int HDMapImpl::LoadMapFromProto(const Map& map_proto) {
       }
     }
   }
-  for (const auto& lane_ptr_pair : lane_table_) {
+  for (const auto& lane_ptr_pair : lane_table_) {//根据每一个车道，更新overlap依赖关系
     lane_ptr_pair.second->PostProcess(*this);
   }
-  for (const auto& junction_ptr_pair : junction_table_) {
+  for (const auto& junction_ptr_pair : junction_table_) {//根据每一个junction，更新overlap依赖关系
     junction_ptr_pair.second->PostProcess(*this);
   }
-  for (const auto& stop_sign_ptr_pair : stop_sign_table_) {
+  for (const auto& stop_sign_ptr_pair : stop_sign_table_) {//根据每一个stop_sign，更新overlap依赖关系
     stop_sign_ptr_pair.second->PostProcess(*this);
   }
   BuildLaneSegmentKDTree();
@@ -216,12 +221,14 @@ RSUInfoConstPtr HDMapImpl::GetRSUById(const Id& id) const {
   RSUTable::const_iterator it = rsu_table_.find(id.id());
   return it != rsu_table_.end() ? it->second : nullptr;
 }
+
+//根据目标点和距离 查找距离内的车道，放到lanes
 int HDMapImpl::GetLanes(const PointENU& point, double distance,
                         std::vector<LaneInfoConstPtr>* lanes) const {
   return GetLanes({point.x(), point.y()}, distance, lanes);
 }
 
-//根据目标点和距离 查找距离内的车道
+//根据目标点和距离 查找距离内的车道，放到lanes
 int HDMapImpl::GetLanes(const Vec2d& point, double distance,
                         std::vector<LaneInfoConstPtr>* lanes) const {
   if (lanes == nullptr || lane_segment_kdtree_ == nullptr) {
@@ -240,11 +247,16 @@ int HDMapImpl::GetLanes(const Vec2d& point, double distance,
   return 0;
 }
 
+//根据设定的距离distance和需要查找的点point，查找符合条件的road都放到roads中
 int HDMapImpl::GetRoads(const PointENU& point, double distance,
                         std::vector<RoadInfoConstPtr>* roads) const {
   return GetRoads({point.x(), point.y()}, distance, roads);
 }
 
+
+//根据设定的距离distance和需要查找的点point，查找符合条件的road都放到roads中
+//根据lanes的查找结果，把lanes的road放到road_ids中，根据road_ids，把road都放到roads中
+//疑问：如果两条车道对应的road相同，会造成roads中放入了相同的road
 int HDMapImpl::GetRoads(const Vec2d& point, double distance,
                         std::vector<RoadInfoConstPtr>* roads) const {
   std::vector<LaneInfoConstPtr> lanes;
@@ -267,12 +279,14 @@ int HDMapImpl::GetRoads(const Vec2d& point, double distance,
   return 0;
 }
 
+//根据设定的距离distance和需要查找的点point，查找符合条件的junction都放到junctions中
 int HDMapImpl::GetJunctions(
     const PointENU& point, double distance,
     std::vector<JunctionInfoConstPtr>* junctions) const {
   return GetJunctions({point.x(), point.y()}, distance, junctions);
 }
 
+//根据设定的距离distance和需要查找的点point，查找符合条件的junction都放到junctions中
 int HDMapImpl::GetJunctions(
     const Vec2d& point, double distance,
     std::vector<JunctionInfoConstPtr>* junctions) const {
@@ -291,12 +305,12 @@ int HDMapImpl::GetJunctions(
   }
   return 0;
 }
-
+//根据设定的距离distance和需要查找的点point，查找符合条件的都放到signals中
 int HDMapImpl::GetSignals(const PointENU& point, double distance,
                           std::vector<SignalInfoConstPtr>* signals) const {
   return GetSignals({point.x(), point.y()}, distance, signals);
 }
-
+//根据设定的距离distance和需要查找的点point，查找符合条件的都放到signals中
 int HDMapImpl::GetSignals(const Vec2d& point, double distance,
                           std::vector<SignalInfoConstPtr>* signals) const {
   if (signals == nullptr || signal_segment_kdtree_ == nullptr) {
@@ -314,13 +328,13 @@ int HDMapImpl::GetSignals(const Vec2d& point, double distance,
   }
   return 0;
 }
-
+//根据设定的距离distance和需要查找的点point，查找符合条件的都放到crosswalks中
 int HDMapImpl::GetCrosswalks(
     const PointENU& point, double distance,
     std::vector<CrosswalkInfoConstPtr>* crosswalks) const {
   return GetCrosswalks({point.x(), point.y()}, distance, crosswalks);
 }
-
+//根据设定的距离distance和需要查找的点point，查找符合条件的都放到crosswalks中
 int HDMapImpl::GetCrosswalks(
     const Vec2d& point, double distance,
     std::vector<CrosswalkInfoConstPtr>* crosswalks) const {
@@ -339,13 +353,13 @@ int HDMapImpl::GetCrosswalks(
   }
   return 0;
 }
-
+//根据设定的距离distance和需要查找的点point，查找符合条件的都放到stop_signs中
 int HDMapImpl::GetStopSigns(
     const PointENU& point, double distance,
     std::vector<StopSignInfoConstPtr>* stop_signs) const {
   return GetStopSigns({point.x(), point.y()}, distance, stop_signs);
 }
-
+//根据设定的距离distance和需要查找的点point，查找符合条件的都放到stop_signs中
 int HDMapImpl::GetStopSigns(
     const Vec2d& point, double distance,
     std::vector<StopSignInfoConstPtr>* stop_signs) const {
@@ -364,13 +378,13 @@ int HDMapImpl::GetStopSigns(
   }
   return 0;
 }
-
+//根据设定的距离distance和需要查找的点point，查找符合条件的都放到yield_signs中
 int HDMapImpl::GetYieldSigns(
     const PointENU& point, double distance,
     std::vector<YieldSignInfoConstPtr>* yield_signs) const {
   return GetYieldSigns({point.x(), point.y()}, distance, yield_signs);
 }
-
+//根据设定的距离distance和需要查找的点point，查找符合条件的都放到yield_signs中
 int HDMapImpl::GetYieldSigns(
     const Vec2d& point, double distance,
     std::vector<YieldSignInfoConstPtr>* yield_signs) const {
@@ -390,13 +404,13 @@ int HDMapImpl::GetYieldSigns(
 
   return 0;
 }
-
+//根据设定的距离distance和需要查找的点point，查找符合条件的都放到yield_signs中
 int HDMapImpl::GetClearAreas(
     const PointENU& point, double distance,
     std::vector<ClearAreaInfoConstPtr>* clear_areas) const {
   return GetClearAreas({point.x(), point.y()}, distance, clear_areas);
 }
-
+//根据设定的距离distance和需要查找的点point，查找符合条件的都放到yield_signs中
 int HDMapImpl::GetClearAreas(
     const Vec2d& point, double distance,
     std::vector<ClearAreaInfoConstPtr>* clear_areas) const {
@@ -416,13 +430,13 @@ int HDMapImpl::GetClearAreas(
 
   return 0;
 }
-
+//根据设定的距离distance和需要查找的点point，查找符合条件的都放到yield_signs中
 int HDMapImpl::GetSpeedBumps(
     const PointENU& point, double distance,
     std::vector<SpeedBumpInfoConstPtr>* speed_bumps) const {
   return GetSpeedBumps({point.x(), point.y()}, distance, speed_bumps);
 }
-
+//根据设定的距离distance和需要查找的点point，查找符合条件的都放到yield_signs中
 int HDMapImpl::GetSpeedBumps(
     const Vec2d& point, double distance,
     std::vector<SpeedBumpInfoConstPtr>* speed_bumps) const {
@@ -442,13 +456,13 @@ int HDMapImpl::GetSpeedBumps(
 
   return 0;
 }
-
+//根据设定的距离distance和需要查找的点point，查找符合条件的都放到yield_signs中
 int HDMapImpl::GetParkingSpaces(
     const PointENU& point, double distance,
     std::vector<ParkingSpaceInfoConstPtr>* parking_spaces) const {
   return GetParkingSpaces({point.x(), point.y()}, distance, parking_spaces);
 }
-
+//根据设定的距离distance和需要查找的点point，查找符合条件的都放到yield_signs中
 int HDMapImpl::GetParkingSpaces(
     const Vec2d& point, double distance,
     std::vector<ParkingSpaceInfoConstPtr>* parking_spaces) const {
@@ -468,13 +482,13 @@ int HDMapImpl::GetParkingSpaces(
 
   return 0;
 }
-
+//根据设定的距离distance和需要查找的点point，查找符合条件的都放到yield_signs中
 int HDMapImpl::GetPNCJunctions(
     const apollo::common::PointENU& point, double distance,
     std::vector<PNCJunctionInfoConstPtr>* pnc_junctions) const {
   return GetPNCJunctions({point.x(), point.y()}, distance, pnc_junctions);
 }
-
+//根据设定的距离distance和需要查找的点point，查找符合条件的都放到yield_signs中
 int HDMapImpl::GetPNCJunctions(
     const apollo::common::math::Vec2d& point, double distance,
     std::vector<PNCJunctionInfoConstPtr>* pnc_junctions) const {
@@ -527,7 +541,7 @@ int HDMapImpl::GetNearestLane(const Vec2d& point,
 
   return 0;
 }
-
+//找点对应的最近车道（航向也同向）和s、l值
 int HDMapImpl::GetNearestLaneWithHeading(
     const PointENU& point, const double distance, const double central_heading,
     const double max_heading_difference, LaneInfoConstPtr* nearest_lane,
@@ -1318,8 +1332,8 @@ void HDMapImpl::BuildSegmentKDTree(const Table& table,
   box_table->clear();
   for (const auto& info_with_id : table) {
     const auto* info = info_with_id.second.get();
-    for (size_t id = 0; id < info->segments().size(); ++id) {
-      const auto& segment = info->segments()[id];
+    for (size_t id = 0; id < info->segments().size(); ++id) {//bianli遍历每条lane的每两点组成的线段
+      const auto& segment = info->segments()[id];//每条线段
       box_table->emplace_back(
           apollo::common::math::AABox2d(segment.start(), segment.end()), info,
           &segment, id);

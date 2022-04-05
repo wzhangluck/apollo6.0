@@ -99,7 +99,7 @@ PullOverStatus CheckADCPullOver(
 
   const double adc_front_edge_s = reference_line_info.AdcSlBoundary().end_s();
   double distance = adc_front_edge_s - pull_over_sl.s();
-  if (distance >= scenario_config.pass_destination_threshold()) {
+  if (distance >= scenario_config.pass_destination_threshold()) {//默认15m
     ADEBUG << "ADC passed pull-over spot: distance[" << distance << "]";
     return PASS_DESTINATION;
   }
@@ -184,11 +184,11 @@ bool CheckPullOverPositionBySL(const ReferenceLineInfo& reference_line_info,
          << "] l_diff[" << l_diff << "] theta_diff[" << theta_diff << "]";
 
   // check s/l/theta diff
-  bool ret = (l_diff <= scenario_config.max_l_error_to_end_point() &&
-              theta_diff <= scenario_config.max_theta_error_to_end_point());
+  bool ret = (l_diff <= scenario_config.max_l_error_to_end_point() &&//默认1m
+              theta_diff <= scenario_config.max_theta_error_to_end_point());//默认0.2deg
   if (check_s) {
     ret = (ret && s_diff >= 0 &&
-           s_diff <= scenario_config.max_s_error_to_end_point());
+           s_diff <= scenario_config.max_s_error_to_end_point());//0.5m
   }
 
   return ret;

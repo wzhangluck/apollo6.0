@@ -29,8 +29,9 @@ using apollo::relative_map::MapMsg;
 namespace {
 
 // Find the first existing file from a list of candidates: "file_a|file_b|...".
+//从指定目录查找base_map.bin|base_map.xml|base_map.txt找到即返回
 std::string FindFirstExist(const std::string& dir, const std::string& files) {
-  const std::vector<std::string> candidates = absl::StrSplit(files, '|');
+  const std::vector<std::string> candidates = absl::StrSplit(files, '|');//base_map.bin|base_map.xml|base_map.txt
   for (const auto& filename : candidates) {
     const std::string file_path = absl::StrCat(FLAGS_map_dir, "/", filename);
     if (cyber::common::PathExists(file_path)) {
@@ -49,8 +50,8 @@ std::string BaseMapFile() {
   if (FLAGS_use_navigation_mode) {
     AWARN << "base_map file is not used when FLAGS_use_navigation_mode is true";
   }
-  return FLAGS_test_base_map_filename.empty()
-             ? FindFirstExist(FLAGS_map_dir, FLAGS_base_map_filename)
+  return FLAGS_test_base_map_filename.empty()//根据测试地图文件名字是否为空，决定用哪个flags的名字，默认base_map.bin|base_map.xml|base_map.txt
+             ? FindFirstExist(FLAGS_map_dir, FLAGS_base_map_filename)///默认目录apollo/modules/map/data/demo
              : FindFirstExist(FLAGS_map_dir, FLAGS_test_base_map_filename);
 }
 
@@ -69,6 +70,7 @@ std::string RoutingMapFile() {
   return FindFirstExist(FLAGS_map_dir, FLAGS_routing_map_filename);
 }
 
+//被BaseMapPtr调用，形参为BaseMapFile函数查询到的文件全路径
 std::unique_ptr<HDMap> CreateMap(const std::string& map_file_path) {
   std::unique_ptr<HDMap> hdmap(new HDMap());
   if (hdmap->LoadMapFromFile(map_file_path) != 0) {

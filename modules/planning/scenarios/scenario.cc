@@ -69,6 +69,7 @@ Scenario::ScenarioStatus Scenario::Process(
     AWARN << "Current stage is a null pointer.";
     return STATUS_UNKNOWN;
   }
+  //stage执行完毕，更新场景状态scenario_status_
   if (current_stage_->stage_type() == ScenarioConfig::NO_STAGE) {
     scenario_status_ = STATUS_DONE;
     return scenario_status_;

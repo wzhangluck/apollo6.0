@@ -110,12 +110,13 @@ bool GetProtoFromFile(const std::string &file_name,
                       google::protobuf::Message *message) {
   // Try the binary parser first if it's much likely a binary proto.
   static const std::string kBinExt = ".bin";
-  if (std::equal(kBinExt.rbegin(), kBinExt.rend(), file_name.rbegin())) {
+  //rbegin反向迭代器从最后一个进行遍历，c.rbegin() 返回一个逆序迭代器，它指向容器c的最后一个元素，c.rend() 返回一个逆序迭代器，它指向容器c的第一个元素前面的位置
+  if (std::equal(kBinExt.rbegin(), kBinExt.rend(), file_name.rbegin())) {//如果是bin文件
     return GetProtoFromBinaryFile(file_name, message) ||
            GetProtoFromASCIIFile(file_name, message);
   }
 
-  return GetProtoFromASCIIFile(file_name, message) ||
+  return GetProtoFromASCIIFile(file_name, message) ||//如果是txt文件
          GetProtoFromBinaryFile(file_name, message);
 }
 

@@ -166,7 +166,7 @@ void PncMap::UpdateRoutingRange(int adc_index) {
   range_end_ = range_start_;
   while (range_end_ < static_cast<int>(route_indices_.size())) {
     const auto &lane_id = route_indices_[range_end_].segment.lane->id().id();
-    if (range_lane_ids_.count(lane_id) != 0) {//unordered_set.count 存在返回1
+    if (range_lane_ids_.count(lane_id) != 0) {//unordered_set.count 存在返回1//unordered_set::count()函数是C++ STL中的内置函数，用于对unordered_set容器中特定元素的出现进行计数
       break;
     }
     range_lane_ids_.insert(lane_id);
@@ -396,8 +396,9 @@ int PncMap::NextWaypointIndex(int index) const {
 }
 
 //从adc_route_index_为基础，搜索waypoint对应的route_indices_的索引
-  int forward_index = SearchForwardWaypointIndex(adc_route_index_, waypoint);
+  
 int PncMap::GetWaypointIndex(const LaneWaypoint &waypoint) const {
+  int forward_index = SearchForwardWaypointIndex(adc_route_index_, waypoint);
   if (forward_index >= static_cast<int>(route_indices_.size())) {
     return SearchBackwardWaypointIndex(adc_route_index_, waypoint);
   }
@@ -513,10 +514,11 @@ bool PncMap::GetRouteSegments(const VehicleState &vehicle_state,
 }
 //pnc map最重要的功能
 //每条LaneSequence最多持有20个LanePoint，每两个LanePoint之间的距离为2m
+//https://zhuanlan.zhihu.com/p/428016803
 bool PncMap::GetRouteSegments(const VehicleState &vehicle_state,
                               const double backward_length,
                               const double forward_length,
-                              std::list<RouteSegments> *const route_segments/*每个元素都是代表当前车辆的一种运动方案 */) {
+                              std::list<RouteSegments> *const route_segments)/*每个元素都是代表当前车辆的一种运动方案 */) {
   //根据路由查询响应以及车辆状态可以得到当前车辆在规划路径中的位置adc_waypoint_，以及下一个必经查询点的索引next_routing_waypoint_index_
   if (!UpdateVehicleState(vehicle_state)) {
     AERROR << "Failed to update vehicle state in pnc_map.";

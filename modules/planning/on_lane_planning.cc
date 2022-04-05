@@ -97,7 +97,7 @@ Status OnLanePlanning::Init(const PlanningConfig& config) {
   // clear planning status
   injector_->planning_context()->mutable_planning_status()->Clear();
 
-  // load map
+  // load map //加载地图
   hdmap_ = HDMapUtil::BaseMapPtr();
   ACHECK(hdmap_) << "Failed to load map";
 

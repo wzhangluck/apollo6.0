@@ -39,6 +39,7 @@ constexpr double kDuplicatedPointsEpsilon = 1e-7;
 // Margin for comparation
 constexpr double kEpsilon = 0.1;
 
+//去掉相同重复的点
 void RemoveDuplicates(std::vector<Vec2d> *points) {
   RETURN_IF_NULL(points);
 
@@ -52,6 +53,38 @@ void RemoveDuplicates(std::vector<Vec2d> *points) {
   points->resize(count);
 }
 
+/*
+lane {
+  id {
+    id: "lane_13"
+  }
+  central_curve {
+    segment {
+      line_segment {
+        point {
+          x: 587005.2303237915
+          y: 4141592.8272733688
+        }
+        point {
+          x: 587020.93030166626
+          y: 4141588.5776176453
+        }
+        point {
+          x: 587039.40564918518
+          y: 4141582.90659523
+        }
+      }
+      s: 0
+      start_position {
+        x: 587005.2303237915
+        y: 4141592.8272733688
+        z: 0
+      }
+      length: 35.591361999511719
+    }
+  }
+  */
+ //从地图中的central_curve->segment->line_segment中得到各个（地图原始的）point
 void PointsFromCurve(const Curve &input_curve, std::vector<Vec2d> *points) {
   RETURN_IF_NULL(points);
   points->clear();
@@ -68,6 +101,7 @@ void PointsFromCurve(const Curve &input_curve, std::vector<Vec2d> *points) {
   RemoveDuplicates(points);
 }
 
+//被crosswalk等类型地图调用进行初始化，形成多边形Polygon2d
 apollo::common::math::Polygon2d ConvertToPolygon2d(const Polygon &polygon) {
   std::vector<Vec2d> points;
   points.reserve(polygon.point_size());
@@ -75,6 +109,8 @@ apollo::common::math::Polygon2d ConvertToPolygon2d(const Polygon &polygon) {
     points.emplace_back(point.x(), point.y());
   }
   RemoveDuplicates(&points);
+
+  //第一个点和最后一个点距离重复时，把最后一个点删除
   while (points.size() >= 2 && points[0].DistanceTo(points.back()) <=
                                    apollo::common::math::kMathEpsilon) {
     points.pop_back();
@@ -82,6 +118,7 @@ apollo::common::math::Polygon2d ConvertToPolygon2d(const Polygon &polygon) {
   return apollo::common::math::Polygon2d(points);
 }
 
+//根据curve，得到points，进而得到线段vector（segments）
 void SegmentsFromCurve(
     const Curve &curve,
     std::vector<apollo::common::math::LineSegment2d> *segments) {
@@ -94,6 +131,7 @@ void SegmentsFromCurve(
   }
 }
 
+//数据结构转换，由Vec2d转化为PointENU
 PointENU PointFromVec2d(const Vec2d &point) {
   PointENU pt;
   pt.set_x(point.x());
@@ -105,6 +143,159 @@ PointENU PointFromVec2d(const Vec2d &point) {
 
 LaneInfo::LaneInfo(const Lane &lane) : lane_(lane) { Init(); }
 
+/*
+lane {
+  id {
+    id: "lane_13"
+  }
+  central_curve {
+    segment {
+      line_segment {
+        point {
+          x: 587005.2303237915
+          y: 4141592.8272733688
+        }
+        point {
+          x: 587020.93030166626
+          y: 4141588.5776176453
+        }
+        point {
+          x: 587039.40564918518
+          y: 4141582.90659523
+        }
+      }
+      s: 0
+      start_position {
+        x: 587005.2303237915
+        y: 4141592.8272733688
+        z: 0
+      }
+      length: 35.591361999511719
+    }
+  }
+  left_boundary {
+    curve {
+      segment {
+        line_segment {
+          point {
+            x: 587005.68755340576
+            y: 4141594.516456604
+          }
+          point {
+            x: 587021.41816329956
+            y: 4141590.2582302094
+          }
+          point {
+            x: 587039.91916656494
+            y: 4141584.5795555115
+          }
+        }
+        s: 0
+        start_position {
+          x: 587005.68755340576
+          y: 4141594.516456604
+        }
+        length: 35.649940490722656
+      }
+    }
+    length: 35.649940490722656
+    boundary_type {
+      s: 0
+      types: DOUBLE_YELLOW
+    }
+  }
+  right_boundary {
+    curve {
+      segment {
+        line_segment {
+          point {
+            x: 587004.77309417725
+            y: 4141591.13808918
+          }
+          point {
+            x: 587020.442440033
+            y: 4141586.8970050812
+          }
+          point {
+            x: 587038.89213180542
+            y: 4141581.2336349487
+          }
+        }
+        s: 0
+        start_position {
+          x: 587005.68755340576
+          y: 4141594.516456604
+        }
+        length: 35.649940490722656
+      }
+    }
+    length: 35.532783508300781
+    boundary_type {
+      types: DOTTED_WHITE
+    }
+  }
+  length: 35.591361999511719
+  speed_limit: 20.117000579833984
+  successor_id {
+    id: "lane_36"
+  }
+  right_neighbor_forward_lane_id {
+    id: "lane_12"
+  }
+  type: CITY_DRIVING
+  turn: NO_TURN
+  left_sample {
+    s: 0
+    width: 1.75
+  }
+  left_sample {
+    s: 16.265226364135742
+    width: 1.75
+  }
+  left_sample {
+    s: 35.591361999511719
+    width: 1.75
+  }
+  right_sample {
+    s: 0
+    width: 1.75
+  }
+  right_sample {
+    s: 16.265226364135742
+    width: 1.75
+  }
+  right_sample {
+    s: 35.591361999511719
+    width: 1.75
+  }
+  direction: FORWARD
+  left_road_sample {
+    s: 0
+    width: 1.75
+  }
+  left_road_sample {
+    s: 16.265226364135742
+    width: 1.75
+  }
+  left_road_sample {
+    s: 35.591361999511719
+    width: 1.75
+  }
+  right_road_sample {
+    s: 0
+    width: 1.75
+  }
+  right_road_sample {
+    s: 16.265226364135742
+    width: 1.75
+  }
+  right_road_sample {
+    s: 35.591361999511719
+    width: 1.75
+  }
+}
+*/
+//地图中的每一个lane进行初始化
 void LaneInfo::Init() {
   PointsFromCurve(lane_.central_curve(), &points_);
   CHECK_GE(points_.size(), 2U);
@@ -115,21 +306,21 @@ void LaneInfo::Init() {
 
   double s = 0;
   for (size_t i = 0; i + 1 < points_.size(); ++i) {
-    segments_.emplace_back(points_[i], points_[i + 1]);
+    segments_.emplace_back(points_[i], points_[i + 1]);//连续两点间用直线描述
     accumulated_s_.push_back(s);
-    unit_directions_.push_back(segments_.back().unit_direction());
+    unit_directions_.push_back(segments_.back().unit_direction());//计算直线段方向
     s += segments_.back().length();
   }
 
-  accumulated_s_.push_back(s);
-  total_length_ = s;
+  accumulated_s_.push_back(s);//累加s
+  total_length_ = s;//每条lane的起始s都是0
   ACHECK(!unit_directions_.empty());
   unit_directions_.push_back(unit_directions_.back());
   for (const auto &direction : unit_directions_) {
-    headings_.push_back(direction.Angle());
+    headings_.push_back(direction.Angle());//根据方向计算角度
   }
   for (const auto &overlap_id : lane_.overlap_id()) {
-    overlap_ids_.emplace_back(overlap_id.id());
+    overlap_ids_.emplace_back(overlap_id.id());//重叠的id
   }
   ACHECK(!segments_.empty());
 
@@ -142,10 +333,11 @@ void LaneInfo::Init() {
     sampled_right_width_.emplace_back(sample.s(), sample.width());
   }
 
+//如果是城市道路，检查左侧、右侧宽度是否＞半个车宽
   if (lane_.has_type()) {
     if (lane_.type() == Lane::CITY_DRIVING) {
       for (const auto &p : sampled_left_width_) {
-        if (p.second < FLAGS_half_vehicle_width) {
+        if (p.second < FLAGS_half_vehicle_width) {//默认1.05m
           AERROR
               << "lane[id = " << lane_.id().DebugString()
               << "]. sampled_left_width_[" << p.second
@@ -181,6 +373,8 @@ void LaneInfo::Init() {
   CreateKDTree();
 }
 
+
+//根据s，分别查找s对应的左侧和右侧路宽
 void LaneInfo::GetWidth(const double s, double *left_width,
                         double *right_width) const {
   if (left_width != nullptr) {
@@ -191,6 +385,7 @@ void LaneInfo::GetWidth(const double s, double *left_width,
   }
 }
 
+//
 double LaneInfo::Heading(const double s) const {
   const double kEpsilon = 0.001;
   if (s + kEpsilon < accumulated_s_.front()) {
@@ -202,6 +397,7 @@ double LaneInfo::Heading(const double s) const {
     return 0.0;
   }
 
+//根据accumulated_s_找到s对应的索引
   auto iter = std::lower_bound(accumulated_s_.begin(), accumulated_s_.end(), s);
   int index = static_cast<int>(std::distance(accumulated_s_.begin(), iter));
   if (index == 0 || *iter - s <= common::math::kMathEpsilon) {
@@ -211,6 +407,7 @@ double LaneInfo::Heading(const double s) const {
                              headings_[index], accumulated_s_[index], s);
 }
 
+//根据s处的delts和deltheading计算曲率
 double LaneInfo::Curvature(const double s) const {
   if (points_.size() < 2U) {
     AERROR << "Not enough points to compute curvature.";
@@ -240,6 +437,7 @@ double LaneInfo::Curvature(const double s) const {
          (accumulated_s_[index] - accumulated_s_[index - 1] + kEpsilon);
 }
 
+//根据s查询对应的车道宽度，左侧+右侧
 double LaneInfo::GetWidth(const double s) const {
   double left_width = 0.0;
   double right_width = 0.0;
@@ -247,6 +445,7 @@ double LaneInfo::GetWidth(const double s) const {
   return left_width + right_width;
 }
 
+//根据s查询对应的车道宽度，2倍的min(左侧、右侧)
 double LaneInfo::GetEffectiveWidth(const double s) const {
   double left_width = 0.0;
   double right_width = 0.0;
@@ -271,6 +470,7 @@ double LaneInfo::GetRoadWidth(const double s) const {
   return left_width + right_width;
 }
 
+//根据s和lane的采样路宽，查找线性差值得到s处的路宽
 double LaneInfo::GetWidthFromSample(
     const std::vector<LaneInfo::SampledWidth> &samples, const double s) const {
   if (samples.empty()) {
@@ -284,6 +484,7 @@ double LaneInfo::GetWidthFromSample(
   }
   int low = 0;
   int high = static_cast<int>(samples.size());
+  //通过二分法找到s对应的samples索引的low和high
   while (low + 1 < high) {
     const int mid = (low + high) / 2;
     if (samples[mid].first <= s) {
@@ -294,6 +495,7 @@ double LaneInfo::GetWidthFromSample(
   }
   const LaneInfo::SampledWidth &sample1 = samples[low];
   const LaneInfo::SampledWidth &sample2 = samples[high];
+  //根据s、low、high对应的s进行线性差值，得到采样s对应的路宽
   const double ratio = (sample2.first - s) / (sample2.first - sample1.first);
   return sample1.second * ratio + sample2.second * (1.0 - ratio);
 }
@@ -305,6 +507,7 @@ bool LaneInfo::IsOnLane(const Vec2d &point) const {
     return false;
   }
 
+//如果s超出了lane的总长度，则返回错误
   if (accumulate_s > (total_length() + kEpsilon) ||
       (accumulate_s + kEpsilon) < 0.0) {
     return false;
@@ -312,6 +515,7 @@ bool LaneInfo::IsOnLane(const Vec2d &point) const {
 
   double left_width = 0.0;
   double right_width = 0.0;
+  //如果l值在车道宽度内，则返回true
   GetWidth(accumulate_s, &left_width, &right_width);
   if (lateral < left_width && lateral > -right_width) {
     return true;
@@ -319,6 +523,7 @@ bool LaneInfo::IsOnLane(const Vec2d &point) const {
   return false;
 }
 
+//判断输入的包围盒obb，是否在车道上（通过判断所有角点是否在车道内
 bool LaneInfo::IsOnLane(const apollo::common::math::Box2d &box) const {
   std::vector<Vec2d> corners;
   box.GetAllCorners(&corners);
@@ -392,6 +597,7 @@ PointENU LaneInfo::GetNearestPoint(const Vec2d &point, double *distance) const {
   return PointFromVec2d(nearest_point);
 }
 
+//根据点xy坐标求s和l
 bool LaneInfo::GetProjection(const Vec2d &point, double *accumulate_s,
                              double *lateral) const {
   RETURN_VAL_IF_NULL(accumulate_s, false);
@@ -403,7 +609,7 @@ bool LaneInfo::GetProjection(const Vec2d &point, double *accumulate_s,
   double min_dist = std::numeric_limits<double>::infinity();
   int seg_num = static_cast<int>(segments_.size());
   int min_index = 0;
-  for (int i = 0; i < seg_num; ++i) {
+  for (int i = 0; i < seg_num; ++i) {//求点到各个线段的垂线距离，找出最短距离对应的线段
     const double distance = segments_[i].DistanceSquareTo(point);
     if (distance < min_dist) {
       min_index = i;
@@ -412,23 +618,23 @@ bool LaneInfo::GetProjection(const Vec2d &point, double *accumulate_s,
   }
   min_dist = std::sqrt(min_dist);
   const auto &nearest_seg = segments_[min_index];
-  const auto prod = nearest_seg.ProductOntoUnit(point);
-  const auto proj = nearest_seg.ProjectOntoUnit(point);
-  if (min_index == 0) {
+  const auto prod = nearest_seg.ProductOntoUnit(point);//叉乘，垂线长度，左右是有符号的
+  const auto proj = nearest_seg.ProjectOntoUnit(point);//内积，投影长度
+  if (min_index == 0) {//说明垂点在第一个线段之外
     *accumulate_s = std::min(proj, nearest_seg.length());
     if (proj < 0) {
       *lateral = prod;
     } else {
       *lateral = (prod > 0.0 ? 1 : -1) * min_dist;
     }
-  } else if (min_index == seg_num - 1) {
+  } else if (min_index == seg_num - 1) {//说明垂点在最后一个线段之外
     *accumulate_s = accumulated_s_[min_index] + std::max(0.0, proj);
     if (proj > 0) {
       *lateral = prod;
     } else {
       *lateral = (prod > 0.0 ? 1 : -1) * min_dist;
     }
-  } else {
+  } else {//垂点在两个点之间
     *accumulate_s = accumulated_s_[min_index] +
                     std::max(0.0, std::min(proj, nearest_seg.length()));
     *lateral = (prod > 0.0 ? 1 : -1) * min_dist;
@@ -436,14 +642,16 @@ bool LaneInfo::GetProjection(const Vec2d &point, double *accumulate_s,
   return true;
 }
 
+//地图数据后处理，更新overlap间的关系
 void LaneInfo::PostProcess(const HDMapImpl &map_instance) {
   UpdateOverlaps(map_instance);
 }
 
+//地图数据后处理，更新overlap间的关系
 void LaneInfo::UpdateOverlaps(const HDMapImpl &map_instance) {
   for (const auto &overlap_id : overlap_ids_) {
     const auto &overlap_ptr =
-        map_instance.GetOverlapById(MakeMapId(overlap_id));
+        map_instance.GetOverlapById(MakeMapId(overlap_id));//通过overlap_table_查询
     if (overlap_ptr == nullptr) {
       continue;
     }
@@ -494,7 +702,7 @@ void LaneInfo::CreateKDTree() {
   params.max_leaf_size = 16;
 
   segment_box_list_.clear();
-  for (size_t id = 0; id < segments_.size(); ++id) {
+  for (size_t id = 0; id < segments_.size(); ++id) {//segments是地图中点-点依次组成的线段
     const auto &segment = segments_[id];
     segment_box_list_.emplace_back(
         apollo::common::math::AABox2d(segment.start(), segment.end()), this,
@@ -586,7 +794,7 @@ void StopSignInfo::PostProcess(const HDMapImpl &map_instance) {
 
 void StopSignInfo::UpdateOverlaps(const HDMapImpl &map_instance) {
   for (const auto &overlap_id : overlap_ids_) {
-    const auto &overlap_ptr = map_instance.GetOverlapById(overlap_id);
+    const auto &overlap_ptr = map_instance.GetOverlapById(overlap_id);//遍历overlap_tables
     if (overlap_ptr == nullptr) {
       continue;
     }
