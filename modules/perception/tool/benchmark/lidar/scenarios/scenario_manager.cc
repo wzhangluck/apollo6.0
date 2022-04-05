@@ -721,7 +721,7 @@ ScenarioConfig::ScenarioType ScenarioManager::SelectValetParkingScenario(
 
   // TODO(All) trigger valet parking by route message definition as of now
   double parking_spot_range_to_start =
-      scenario_config.parking_spot_range_to_start();
+      scenario_config.parking_spot_range_to_start();//默认20m
   if (scenario::valet_parking::ValetParkingScenario::IsTransferable(
           frame, parking_spot_range_to_start)) {
     return ScenarioConfig::VALET_PARKING;
@@ -778,7 +778,7 @@ ScenarioConfig::ScenarioType ScenarioManager::SelectParkAndGoScenario(
 
   return default_scenario_type_;
 }
-
+//更新first_encountered_overlap_map_，遍历第一次遇到的overlaps，如果是以下四种情况，则进行更新
 void ScenarioManager::Observe(const Frame& frame) {
   // init first_encountered_overlap_map_
   first_encountered_overlap_map_.clear();
@@ -962,11 +962,12 @@ void ScenarioManager::UpdatePlanningContextBareIntersectionScenario(
                                 ->mutable_planning_status()
                                 ->mutable_bare_intersection();
 
+//如果不是裸露交叉口，清除
   if (!IsBareIntersectionScenario(scenario_type)) {
     bare_intersection->Clear();
     return;
   }
-
+//如果场景类型==当前场景，返回
   if (scenario_type == current_scenario_->scenario_type()) {
     return;
   }
