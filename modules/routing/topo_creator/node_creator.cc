@@ -31,6 +31,7 @@ using apollo::hdmap::Lane;
 using apollo::hdmap::LaneBoundary;
 using apollo::hdmap::LaneBoundaryType;
 
+//通过判断类型是否为黄 白虚线，判断是否可以矢出当前车道
 bool IsAllowedOut(const LaneBoundaryType& type) {
   if (type.types(0) == LaneBoundaryType::DOTTED_YELLOW ||
       type.types(0) == LaneBoundaryType::DOTTED_WHITE) {
@@ -45,6 +46,7 @@ double GetLengthbyRate(double cur_s, double cur_total_length,
   return std::min(new_length, target_length);
 }
 
+//一条车道会有多个segment，计算segment的累加长度
 double GetLaneLength(const Lane& lane) {
   double length = 0.0;
   for (const auto& segment : lane.central_curve().segment()) {
@@ -56,14 +58,14 @@ double GetLaneLength(const Lane& lane) {
 void AddOutBoundary(const LaneBoundary& bound, double lane_length,
                     RepeatedPtrField<CurveRange>* const out_range) {
   for (int i = 0; i < bound.boundary_type_size(); ++i) {//一个车道id可能对应多个边界类型
-    if (!IsAllowedOut(bound.boundary_type(i))) {
+    if (!IsAllowedOut(bound.boundary_type(i))) {//如果不允许驶出，跳出当前循环
       continue;
     }
     CurveRange* range = out_range->Add();
-    range->mutable_start()->set_s(GetLengthbyRate(bound.boundary_type(i).s(),
+    range->mutable_start()->set_s(GetLengthbyRate(bound.boundary_type(i).s(),//第i段边界类型的起始s对应到车道上的s值
                                                   bound.length(), lane_length));
     if (i != bound.boundary_type_size() - 1) {
-      range->mutable_end()->set_s(GetLengthbyRate(
+      range->mutable_end()->set_s(GetLengthbyRate(//第i段边界类型的终止s为第i+1段边界类型的起始s对应到车道上的s值
           bound.boundary_type(i + 1).s(), bound.length(), lane_length));
     } else {
       range->mutable_end()->set_s(lane_length);
@@ -87,13 +89,13 @@ void InitNodeInfo(const Lane& lane, const std::string& road_id,
     node->set_is_virtual(false);
   }
 }
-
+//计算车道的cost，根据长度 速度 左转还是右转还是掉头
 void InitNodeCost(const Lane& lane, const RoutingConfig& routing_config,
                   Node* const node) {
   double lane_length = GetLaneLength(lane);
   double speed_limit =
       lane.has_speed_limit() ? lane.speed_limit() : routing_config.base_speed();
-  double ratio = speed_limit >= routing_config.base_speed()
+  double ratio = speed_limit >= routing_config.base_speed()//速度如果大于配置车速的话，速度越大，比例因子越小
                      ? std::sqrt(routing_config.base_speed() / speed_limit)
                      : 1.0;
                       // 1. 根据道路长度和速度限制来计算代价

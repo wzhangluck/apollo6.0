@@ -132,7 +132,7 @@ void TopoNode::Init() {
 
 bool TopoNode::FindAnchorPoint() {
   double total_size = 0;
-  for (const auto& seg : CentralCurve().segment()) {
+  for (const auto& seg : CentralCurve().segment()) {//计算总的点的个数
     total_size += seg.line_segment().point_size();
   }
   double rate = (StartS() + EndS()) / 2.0 / Length();
@@ -252,7 +252,7 @@ bool TopoNode::IsOverlapEnough(const TopoNode* sub_node,
   }
   return true;
 }
-
+//根据当前节点和输入的边关系，初始化节点类相关成员变量
 void TopoNode::AddInEdge(const TopoEdge* edge) {
   if (edge->ToNode() != this) {
     return;
@@ -277,6 +277,7 @@ void TopoNode::AddInEdge(const TopoEdge* edge) {
   in_edge_map_[edge->FromNode()] = edge;
 }
 
+//根据当前节点和输入的边关系，初始化节点类相关成员变量
 void TopoNode::AddOutEdge(const TopoEdge* edge) {
   if (edge->FromNode() != this) {
     return;

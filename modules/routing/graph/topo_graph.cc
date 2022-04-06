@@ -32,12 +32,13 @@ bool TopoGraph::LoadNodes(const Graph& graph) {
     AERROR << "No nodes found in topology graph.";
     return false;
   }
+  //遍历node（车道）
   for (const auto& node : graph.node()) {
-    node_index_map_[node.lane_id()] = static_cast<int>(topo_nodes_.size());
+    node_index_map_[node.lane_id()] = static_cast<int>(topo_nodes_.size());//建立node车道id和node数组序列号关系map
     std::shared_ptr<TopoNode> topo_node;
     topo_node.reset(new TopoNode(node));
-    road_node_map_[node.road_id()].insert(topo_node.get());
-    topo_nodes_.push_back(std::move(topo_node));
+    road_node_map_[node.road_id()].insert(topo_node.get());//建立road_id和node节点关系
+    topo_nodes_.push_back(std::move(topo_node));//node都加载到里面
   }
   return true;
 }
@@ -58,7 +59,7 @@ bool TopoGraph::LoadEdges(const Graph& graph) {
     std::shared_ptr<TopoEdge> topo_edge;
     TopoNode* from_node = topo_nodes_[node_index_map_[from_lane_id]].get();
     TopoNode* to_node = topo_nodes_[node_index_map_[to_lane_id]].get();
-    topo_edge.reset(new TopoEdge(edge, from_node, to_node));
+    topo_edge.reset(new TopoEdge(edge, from_node, to_node));//根据边、前后车道建立边节点
     from_node->AddOutEdge(topo_edge.get());
     to_node->AddInEdge(topo_edge.get());
     topo_edges_.push_back(std::move(topo_edge));

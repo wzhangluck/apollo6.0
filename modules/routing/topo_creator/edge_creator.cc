@@ -35,12 +35,12 @@ void GetPbEdge(const Node& node_from, const Node& node_to,
     const auto& target_range =
         (type == Edge::LEFT) ? node_from.left_out() : node_from.right_out();
     double changing_area_length = 0.0;
-    for (const auto& range : target_range) {
+    for (const auto& range : target_range) {//计算能够换道的区间总长度
       changing_area_length += range.end().s() - range.start().s();
     }
     double ratio = 1.0;
-    if (changing_area_length < routing_config.base_changing_length()) {
-      ratio = std::pow(
+    if (changing_area_length < routing_config.base_changing_length()) {//如果可供换道的总长度小于配置量
+      ratio = std::pow(//越小，ratio越大，cost越大
           changing_area_length / routing_config.base_changing_length(), -1.5);
     }
     edge->set_cost(routing_config.change_penalty() * ratio);

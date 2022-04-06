@@ -40,7 +40,7 @@ using apollo::hdmap::LaneBoundaryType;
 using ::google::protobuf::RepeatedPtrField;
 
 namespace {
-
+//如果边界类型有一个不为虚线，则返回失败
 bool IsAllowedToCross(const LaneBoundary& boundary) {
   for (const auto& boundary_type : boundary.boundary_type()) {
     if (boundary_type.types(0) != LaneBoundaryType::DOTTED_YELLOW &&
@@ -139,6 +139,14 @@ bool GraphCreator::Create() {
         // 这里就是通过上面所说的通过lane_id找到node的index，得到节点，
     // 如果不保存，则需要遍历所有节点通过lane_id来查找节点，原因为node中有lane_id，
     // 而lane结构中没有node_id。
+    /*
+    message Graph {
+  optional string hdmap_version = 1;
+  optional string hdmap_district = 2;
+  repeated Node node = 3;
+  repeated Edge edge = 4;
+  }
+  */
     const auto& from_node = graph_.node(node_index_map_[lane_id]);
 
 // 添加一条该节点到下一个节点的边，注意这里没有换道，所以方向为前。
@@ -193,12 +201,12 @@ void GraphCreator::AddEdge(const Node& from_node,
       ADEBUG << "Ignored lane [id = " << to_id.id();
       continue;
     }
-    const std::string edge_id = GetEdgeID(from_node.lane_id(), to_id.id());
-    if (showed_edge_id_set_.count(edge_id) != 0) {
+    const std::string edge_id = GetEdgeID(from_node.lane_id(), to_id.id());//根据前后id组成字符串
+    if (showed_edge_id_set_.count(edge_id) != 0) {//如果以及存在这个边的id，退出当前循环
       continue;
     }
     showed_edge_id_set_.insert(edge_id);
-    const auto& iter = node_index_map_.find(to_id.id());
+    const auto& iter = node_index_map_.find(to_id.id());//查找当前车道node的下一个车道id的对应node
     if (iter == node_index_map_.end()) {
       continue;
     }
