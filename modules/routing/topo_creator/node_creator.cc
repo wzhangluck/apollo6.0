@@ -55,7 +55,7 @@ double GetLaneLength(const Lane& lane) {
 
 void AddOutBoundary(const LaneBoundary& bound, double lane_length,
                     RepeatedPtrField<CurveRange>* const out_range) {
-  for (int i = 0; i < bound.boundary_type_size(); ++i) {
+  for (int i = 0; i < bound.boundary_type_size(); ++i) {//一个车道id可能对应多个边界类型
     if (!IsAllowedOut(bound.boundary_type(i))) {
       continue;
     }

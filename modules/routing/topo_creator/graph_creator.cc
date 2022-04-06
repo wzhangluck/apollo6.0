@@ -93,7 +93,7 @@ bool GraphCreator::Create() {
     }
   }
 // 初始化禁止的车道线，从配置文件中读取最小掉头半径
-  InitForbiddenLanes();
+  InitForbiddenLanes();//非城市道路的车道
   const double min_turn_radius =
       VehicleConfigHelper::GetConfig().vehicle_param().min_turn_radius();
 // 遍历base_map中的lane，并且创建节点。

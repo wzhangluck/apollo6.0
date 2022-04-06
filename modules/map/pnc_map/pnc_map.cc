@@ -74,7 +74,14 @@ const double kTrajectoryApproximationMaxError = 2.0;
 PncMap::PncMap(const HDMap *hdmap) : hdmap_(hdmap) {}
 
 const hdmap::HDMap *PncMap::hdmap() const { return hdmap_; }
-
+/*
+routing.proto
+message LaneWaypoint {
+  optional string id = 1;
+  optional double s = 2;
+  optional apollo.common.PointENU pose = 3;
+}
+*/
 LaneWaypoint PncMap::ToLaneWaypoint(
     const routing::LaneWaypoint &waypoint) const {
   auto lane = hdmap_->GetLaneById(hdmap::MakeMapId(waypoint.id()));
@@ -101,7 +108,7 @@ message LaneSegment {
 }
 */
 //根据输入的LaneSegment的id由hdmap查询得到LaneInfo，然后扩展为LaneSegment
-LaneSegment PncMap::ToLaneSegment(const routing::LaneSegment &segment) const {
+LaneSegment PncMap::ToLaneSegment(const routing::LaneSegment/*routing.proto*/ &segment) const {
   auto lane = hdmap_->GetLaneById(hdmap::MakeMapId(segment.id()));
   ACHECK(lane) << "Invalid lane id: " << segment.id();
   return LaneSegment(lane, segment.start_s(), segment.end_s());
@@ -122,7 +129,7 @@ void PncMap::UpdateNextRoutingWaypointIndex(int cur_index) {
   // Search backwards when the car is driven backward on the route.
   while (next_routing_waypoint_index_ != 0 &&
          next_routing_waypoint_index_ < routing_waypoint_index_.size() &&
-         routing_waypoint_index_[next_routing_waypoint_index_].index >
+         routing_waypoint_index_[next_routing_waypoint_index_].index >//route_indices_中的索引
              cur_index) {
     --next_routing_waypoint_index_;
   }
@@ -200,7 +207,7 @@ bool PncMap::UpdateVehicleState(const VehicleState &vehicle_state) {
     return false;
   }
   //adc_waypoint_：车位置的对应的关键车道和s
-  int route_index = GetWaypointIndex(adc_waypoint_);
+  int route_index = GetWaypointIndex(adc_waypoint_);//返回值为route_indices_的索引
   if (route_index < 0 ||
       route_index >= static_cast<int>(route_indices_.size())) {
     AERROR << "Cannot find waypoint: " << adc_waypoint_.DebugString();
@@ -210,7 +217,7 @@ bool PncMap::UpdateVehicleState(const VehicleState &vehicle_state) {
   // Track how many routing request waypoints the adc have passed.
   UpdateNextRoutingWaypointIndex(route_index);
   adc_route_index_ = route_index;
-  UpdateRoutingRange(adc_route_index_);
+  UpdateRoutingRange(adc_route_index_);//更新搜索范围range_lane_ids_（由车辆当前位置开始）
 
   if (routing_waypoint_index_.empty()) {
     AERROR << "No routing waypoint index.";
@@ -395,7 +402,7 @@ int PncMap::NextWaypointIndex(int index) const {
   }
 }
 
-//从adc_route_index_为基础，搜索waypoint对应的route_indices_的索引
+//从adc_route_index_为基础，搜索waypoint对应的route_indices_的索引,返回值为route_indices_的索引
   
 int PncMap::GetWaypointIndex(const LaneWaypoint &waypoint) const {
   int forward_index = SearchForwardWaypointIndex(adc_route_index_, waypoint);

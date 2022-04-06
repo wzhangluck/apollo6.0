@@ -81,7 +81,18 @@ class TopoNode {
   void Init();
   bool FindAnchorPoint();
   void SetAnchorPoint(const common::PointENU& anchor_point);
-
+/*
+message Node {
+  optional string lane_id = 1;
+  optional double length = 2;
+  repeated CurveRange left_out = 3;
+  repeated CurveRange right_out = 4;
+  optional double cost = 5;
+  optional apollo.hdmap.Curve central_curve = 6;
+  optional bool is_virtual = 7 [default = true];
+  optional string road_id = 8;
+}
+*/
   Node pb_node_;
   common::PointENU anchor_point_;
 

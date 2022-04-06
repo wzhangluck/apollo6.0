@@ -175,7 +175,7 @@ class PncMap {
    */
   struct WaypointIndex {
     LaneWaypoint waypoint;
-    int index;
+    int index;////route_indices_中的索引
     WaypointIndex(const LaneWaypoint &waypoint, int index)
         : waypoint(waypoint), index(index) {}
   };
